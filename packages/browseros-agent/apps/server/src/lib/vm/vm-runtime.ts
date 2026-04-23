@@ -145,29 +145,6 @@ export class VmRuntime {
     })
   }
 
-  async listRunningContainers(): Promise<string[]> {
-    const lines: string[] = []
-    await this.runCommand(['nerdctl', 'ps', '--format', '{{.Names}}'], {
-      onOutput: (line) => lines.push(line),
-    })
-    return lines.map((line) => line.trim()).filter(Boolean)
-  }
-
-  tailContainerLogs(containerName: string, onLine: LogFn): () => void {
-    const proc = this.cli.spawnShell(
-      VM_NAME,
-      ['nerdctl', 'logs', '-f', '-n', '0', containerName],
-      { onStdout: onLine, onStderr: onLine },
-    )
-
-    let stopped = false
-    return () => {
-      if (stopped) return
-      stopped = true
-      proc.kill()
-    }
-  }
-
   async reset(_reason: string): Promise<never> {
     throw notImplemented('VmRuntime.reset')
   }

@@ -43,7 +43,7 @@ probes:
 - script: |
     #!/bin/bash
     set -eux -o pipefail
-    if ! timeout 60s bash -c 'until nerdctl info >/dev/null 2>&1; do sleep 2; done'; then
+    if ! timeout 60s bash -c 'until sudo nerdctl info >/dev/null 2>&1; do sleep 2; done'; then
       echo >&2 "nerdctl is not ready after 60s"
       exit 1
     fi

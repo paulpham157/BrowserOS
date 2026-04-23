@@ -333,8 +333,8 @@ describe('VmRuntime', () => {
     expect(resetCalled).toBe(false)
   })
 
-  it('delegates runCommand and listRunningContainers through ssh', async () => {
-    const sshPath = await fakeSsh({ stdout: 'gateway\nworker\n' }, logPath)
+  it('delegates runCommand through ssh', async () => {
+    const sshPath = await fakeSsh({}, logPath)
     const sshConfig = join(limaHome, VM_NAME, 'ssh.config')
     await mkdir(join(limaHome, VM_NAME), { recursive: true })
     await writeFile(sshConfig, '')
@@ -346,17 +346,10 @@ describe('VmRuntime', () => {
     })
 
     await expect(runtime.runCommand(['nerdctl', 'version'])).resolves.toBe(0)
-    await expect(runtime.listRunningContainers()).resolves.toEqual([
-      'gateway',
-      'worker',
-    ])
 
     const log = await readFile(logPath, 'utf8')
     expect(log).toContain(
       `ARGS:-F ${sshConfig} lima-${VM_NAME} 'nerdctl' 'version'`,
-    )
-    expect(log).toContain(
-      `ARGS:-F ${sshConfig} lima-${VM_NAME} 'nerdctl' 'ps' '--format' '{{.Names}}'`,
     )
   })
 
@@ -383,31 +376,6 @@ describe('VmRuntime', () => {
 
     const log = await readFile(logPath, 'utf8')
     expect(log.match(/'ip' '-4' 'route' 'show' 'default'/g)).toHaveLength(1)
-  })
-
-  it('returns a stop handle for tailing container logs', async () => {
-    const sshPath = await fakeSsh({ stdout: 'line\n' }, logPath)
-    const sshConfig = join(limaHome, VM_NAME, 'ssh.config')
-    await mkdir(join(limaHome, VM_NAME), { recursive: true })
-    await writeFile(sshConfig, '')
-    const runtime = new VmRuntime({
-      limactlPath: 'unused',
-      limaHome,
-      sshPath,
-      browserosRoot: root,
-    })
-    const lines: string[] = []
-
-    const stop = runtime.tailContainerLogs('gateway', (line) =>
-      lines.push(line),
-    )
-    await Bun.sleep(20)
-    stop()
-
-    expect(lines).toEqual(['line'])
-    await expect(readFile(logPath, 'utf8')).resolves.toContain(
-      `ARGS:-F ${sshConfig} lima-${VM_NAME} 'nerdctl' 'logs' '-f' '-n' '0' 'gateway'`,
-    )
   })
 })
 

@@ -32,6 +32,7 @@ describe('ContainerRuntime', () => {
     expect(deps.shell.removeContainer).toHaveBeenCalledWith(
       OPENCLAW_GATEWAY_CONTAINER_NAME,
       { force: true },
+      undefined,
     )
     expect(deps.loader.ensureImageLoaded).toHaveBeenCalledWith(
       defaultSpec.image,
@@ -96,9 +97,8 @@ describe('ContainerRuntime', () => {
       defaultSpec,
     )
 
-    expect(deps.vm.runCommand).toHaveBeenCalledWith(
+    expect(deps.shell.runCommand).toHaveBeenCalledWith(
       expect.arrayContaining([
-        'nerdctl',
         'create',
         '--name',
         `${OPENCLAW_GATEWAY_CONTAINER_NAME}-setup`,
@@ -109,15 +109,16 @@ describe('ContainerRuntime', () => {
         '--add-host',
         'host.containers.internal:192.168.5.2',
       ]),
-      expect.any(Object),
+      undefined,
     )
-    expect(deps.vm.runCommand).toHaveBeenCalledWith(
-      ['nerdctl', 'start', '-a', `${OPENCLAW_GATEWAY_CONTAINER_NAME}-setup`],
-      expect.any(Object),
+    expect(deps.shell.runCommand).toHaveBeenCalledWith(
+      ['start', '-a', `${OPENCLAW_GATEWAY_CONTAINER_NAME}-setup`],
+      undefined,
     )
-    expect(deps.vm.runCommand).toHaveBeenCalledWith(
-      ['nerdctl', 'rm', '-f', `${OPENCLAW_GATEWAY_CONTAINER_NAME}-setup`],
-      expect.any(Object),
+    expect(deps.shell.removeContainer).toHaveBeenCalledWith(
+      `${OPENCLAW_GATEWAY_CONTAINER_NAME}-setup`,
+      { force: true },
+      undefined,
     )
   })
 
@@ -138,9 +139,9 @@ describe('ContainerRuntime', () => {
       OPENCLAW_GATEWAY_CONTAINER_NAME,
       expect.any(Function),
     )
-    expect(deps.vm.runCommand).toHaveBeenCalledWith(
-      ['nerdctl', 'logs', '-n', '10', OPENCLAW_GATEWAY_CONTAINER_NAME],
-      expect.any(Object),
+    expect(deps.shell.runCommand).toHaveBeenCalledWith(
+      ['logs', '-n', '10', OPENCLAW_GATEWAY_CONTAINER_NAME],
+      expect.any(Function),
     )
     expect(logs).toEqual(['log line'])
   })
@@ -153,15 +154,6 @@ function createDeps() {
       getDefaultGateway: mock(async () => '192.168.5.2'),
       stopVm: mock(async () => {}),
       isReady: mock(async () => true),
-      runCommand: mock(
-        async (
-          _args: string[],
-          opts?: { onOutput?: (line: string) => void },
-        ) => {
-          opts?.onOutput?.('log line')
-          return 0
-        },
-      ),
     },
     shell: {
       createContainer: mock(async () => {}),
@@ -169,6 +161,12 @@ function createDeps() {
       stopContainer: mock(async () => {}),
       removeContainer: mock(async () => {}),
       exec: mock(async () => 0),
+      runCommand: mock(
+        async (_args: string[], onLog?: (line: string) => void) => {
+          onLog?.('log line')
+          return { exitCode: 0, stdout: 'log line\n', stderr: '' }
+        },
+      ),
       tailLogs: mock(() => () => {}),
     },
     loader: {

@@ -8,6 +8,10 @@ import { ContainerCliError } from '../vm/errors'
 import { LimaCli } from '../vm/lima-cli'
 import type { ContainerSpec, LogFn, MountSpec, PortMapping } from './types'
 
+export function buildSystemNerdctlCommand(args: string[]): string[] {
+  return ['sudo', 'nerdctl', ...args]
+}
+
 export interface ContainerCliConfig {
   limactlPath: string
   limaHome: string
@@ -15,7 +19,7 @@ export interface ContainerCliConfig {
   sshPath?: string
 }
 
-interface CommandResult {
+export interface ContainerCommandResult {
   exitCode: number
   stdout: string
   stderr: string
@@ -33,7 +37,7 @@ export class ContainerCli {
   }
 
   async imageExists(ref: string): Promise<boolean> {
-    const result = await this.run(['image', 'inspect', ref])
+    const result = await this.runCommand(['image', 'inspect', ref])
     return result.exitCode === 0
   }
 
@@ -55,7 +59,7 @@ export class ContainerCli {
   }
 
   async stopContainer(name: string, onLog?: LogFn): Promise<void> {
-    const result = await this.run(['stop', name], onLog)
+    const result = await this.runCommand(['stop', name], onLog)
     if (result.exitCode === 0 || isNoSuchContainer(result.stderr)) return
     throw this.commandError(['stop', name], result)
   }
@@ -68,13 +72,13 @@ export class ContainerCli {
     const args = ['rm']
     if (opts?.force) args.push('-f')
     args.push(name)
-    const result = await this.run(args, onLog)
+    const result = await this.runCommand(args, onLog)
     if (result.exitCode === 0 || isNoSuchContainer(result.stderr)) return
     throw this.commandError(args, result)
   }
 
   async exec(name: string, cmd: string[], onLog?: LogFn): Promise<number> {
-    const result = await this.run(['exec', name, ...cmd], onLog)
+    const result = await this.runCommand(['exec', name, ...cmd], onLog)
     return result.exitCode
   }
 
@@ -91,7 +95,7 @@ export class ContainerCli {
   tailLogs(name: string, onLine: LogFn): () => void {
     const proc = this.lima.spawnShell(
       this.cfg.vmName,
-      ['nerdctl', 'logs', '-f', '-n', '0', name],
+      buildSystemNerdctlCommand(['logs', '-f', '-n', '0', name]),
       { onStdout: onLine, onStderr: onLine },
     )
 
@@ -103,21 +107,15 @@ export class ContainerCli {
     }
   }
 
-  private async runRequired(
+  async runCommand(
     args: string[],
     onLog?: LogFn,
-  ): Promise<CommandResult> {
-    const result = await this.run(args, onLog)
-    if (result.exitCode === 0) return result
-    throw this.commandError(args, result)
-  }
-
-  private async run(args: string[], onLog?: LogFn): Promise<CommandResult> {
+  ): Promise<ContainerCommandResult> {
     const stdoutLines: string[] = []
     const stderrLines: string[] = []
     const exitCode = await this.lima.shell(
       this.cfg.vmName,
-      ['nerdctl', ...args],
+      buildSystemNerdctlCommand(args),
       {
         onStdout: (line) => {
           stdoutLines.push(line)
@@ -137,9 +135,18 @@ export class ContainerCli {
     }
   }
 
+  private async runRequired(
+    args: string[],
+    onLog?: LogFn,
+  ): Promise<ContainerCommandResult> {
+    const result = await this.runCommand(args, onLog)
+    if (result.exitCode === 0) return result
+    throw this.commandError(args, result)
+  }
+
   private commandError(
     args: string[],
-    result: CommandResult,
+    result: ContainerCommandResult,
   ): ContainerCliError {
     return new ContainerCliError(
       `nerdctl ${args.join(' ')}`,

@@ -64,6 +64,7 @@ describe('terminal protocol', () => {
       'shell',
       'browseros-vm',
       '--',
+      'sudo',
       'nerdctl',
       'exec',
       '-it',

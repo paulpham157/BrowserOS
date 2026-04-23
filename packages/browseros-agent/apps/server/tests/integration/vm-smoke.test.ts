@@ -68,12 +68,12 @@ describe('BrowserOS VM live smoke', () => {
       await runtime.ensureReady()
       expect((await stat(getContainerdSocketPath(root))).isSocket()).toBe(true)
       const nerdctlInfoOutput: string[] = []
-      const nerdctlInfoExit = await runtime.runCommand(['nerdctl', 'info'], {
-        onOutput: (line) => nerdctlInfoOutput.push(line),
-      })
-      if (nerdctlInfoExit !== 0) {
+      const nerdctlInfo = await cli.runCommand(['info'], (line) =>
+        nerdctlInfoOutput.push(line),
+      )
+      if (nerdctlInfo.exitCode !== 0) {
         throw new Error(
-          `nerdctl info failed with exit ${nerdctlInfoExit}:\n${nerdctlInfoOutput.join('\n')}`,
+          `nerdctl info failed with exit ${nerdctlInfo.exitCode}:\n${nerdctlInfoOutput.join('\n')}`,
         )
       }
 

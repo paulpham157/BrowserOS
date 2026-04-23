@@ -8,12 +8,11 @@ import {
   OPENCLAW_GATEWAY_CONTAINER_NAME,
   OPENCLAW_GATEWAY_CONTAINER_PORT,
 } from '@browseros/shared/constants/openclaw'
-import type { ContainerCli, ContainerSpec } from '../../../lib/container'
+import type { ContainerCli, ContainerSpec, LogFn } from '../../../lib/container'
 import { logger } from '../../../lib/logger'
 import {
   GUEST_VM_STATE,
   hostPathToGuest,
-  type LogFn,
   type VmRuntime,
 } from '../../../lib/vm'
 
@@ -98,9 +97,9 @@ export class ContainerRuntime {
 
   async getGatewayLogs(tail = 50): Promise<string[]> {
     const lines: string[] = []
-    await this.vm.runCommand(
-      ['nerdctl', 'logs', '-n', String(tail), OPENCLAW_GATEWAY_CONTAINER_NAME],
-      { onOutput: (line) => lines.push(line) },
+    await this.shell.runCommand(
+      ['logs', '-n', String(tail), OPENCLAW_GATEWAY_CONTAINER_NAME],
+      (line) => lines.push(line),
     )
     return lines
   }
@@ -154,14 +153,11 @@ export class ContainerRuntime {
     onLog?: LogFn,
   ): Promise<number> {
     const setupContainerName = `${OPENCLAW_GATEWAY_CONTAINER_NAME}-setup`
-    await this.vm.runCommand(['nerdctl', 'rm', '-f', setupContainerName], {
-      onOutput: onLog,
-    })
+    await this.shell.removeContainer(setupContainerName, { force: true }, onLog)
     await this.loader.ensureImageLoaded(spec.image, onLog)
     const setupArgs = command[0] === 'node' ? command.slice(1) : command
-    const createExitCode = await this.vm.runCommand(
+    const createResult = await this.shell.runCommand(
       [
-        'nerdctl',
         'create',
         '--name',
         setupContainerName,
@@ -170,24 +166,29 @@ export class ContainerRuntime {
         'node',
         ...setupArgs,
       ],
-      { onOutput: onLog },
+      onLog,
     )
-    if (createExitCode !== 0) {
-      await this.vm.runCommand(['nerdctl', 'rm', '-f', setupContainerName], {
-        onOutput: onLog,
-      })
-      return createExitCode
+    if (createResult.exitCode !== 0) {
+      await this.shell.removeContainer(
+        setupContainerName,
+        { force: true },
+        onLog,
+      )
+      return createResult.exitCode
     }
 
     try {
-      return await this.vm.runCommand(
-        ['nerdctl', 'start', '-a', setupContainerName],
-        { onOutput: onLog },
+      const startResult = await this.shell.runCommand(
+        ['start', '-a', setupContainerName],
+        onLog,
       )
+      return startResult.exitCode
     } finally {
-      await this.vm.runCommand(['nerdctl', 'rm', '-f', setupContainerName], {
-        onOutput: onLog,
-      })
+      await this.shell.removeContainer(
+        setupContainerName,
+        { force: true },
+        onLog,
+      )
     }
   }
 
@@ -196,17 +197,11 @@ export class ContainerRuntime {
   }
 
   private async removeGatewayContainer(onLog?: LogFn): Promise<void> {
-    if (onLog) {
-      await this.shell.removeContainer(
-        OPENCLAW_GATEWAY_CONTAINER_NAME,
-        { force: true },
-        onLog,
-      )
-      return
-    }
-    await this.shell.removeContainer(OPENCLAW_GATEWAY_CONTAINER_NAME, {
-      force: true,
-    })
+    await this.shell.removeContainer(
+      OPENCLAW_GATEWAY_CONTAINER_NAME,
+      { force: true },
+      onLog,
+    )
   }
 
   private async buildGatewayContainerSpec(

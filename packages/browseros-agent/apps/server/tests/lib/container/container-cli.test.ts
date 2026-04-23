@@ -31,7 +31,7 @@ describe('ContainerCli', () => {
 
     const sshConfig = sshConfigPath(tempDir)
     await expect(readFile(logPath, 'utf8')).resolves.toContain(
-      `${sshPrefix(sshConfig)} 'nerdctl' 'image' 'inspect' 'openclaw:v1'`,
+      `${sshPrefix(sshConfig)} 'sudo' 'nerdctl' 'image' 'inspect' 'openclaw:v1'`,
     )
   })
 
@@ -72,7 +72,7 @@ describe('ContainerCli', () => {
       cli.loadImage('/mnt/browseros/cache/images/openclaw.tar.gz'),
     ).resolves.toEqual(['openclaw:v1'])
     await expect(readFile(logPath, 'utf8')).resolves.toContain(
-      `${sshPrefix(sshConfigPath(tempDir))} 'nerdctl' 'load' '-i' '/mnt/browseros/cache/images/openclaw.tar.gz'`,
+      `${sshPrefix(sshConfigPath(tempDir))} 'sudo' 'nerdctl' 'load' '-i' '/mnt/browseros/cache/images/openclaw.tar.gz'`,
     )
   })
 
@@ -106,7 +106,7 @@ describe('ContainerCli', () => {
 
     await expect(readFile(logPath, 'utf8')).resolves.toContain(
       [
-        `${sshPrefix(sshConfigPath(tempDir))} 'nerdctl' 'create'`,
+        `${sshPrefix(sshConfigPath(tempDir))} 'sudo' 'nerdctl' 'create'`,
         "'--name' 'gateway'",
         "'--restart' 'unless-stopped'",
         "'-p' '127.0.0.1:18789:18789'",
@@ -138,14 +138,18 @@ describe('ContainerCli', () => {
     ])
 
     const log = await readFile(logPath, 'utf8')
-    expect(log).toContain("lima-browseros-vm 'nerdctl' 'start' 'gateway'")
-    expect(log).toContain("lima-browseros-vm 'nerdctl' 'stop' 'gateway'")
-    expect(log).toContain("lima-browseros-vm 'nerdctl' 'rm' '-f' 'gateway'")
     expect(log).toContain(
-      "lima-browseros-vm 'nerdctl' 'exec' 'gateway' 'node' '--version'",
+      "lima-browseros-vm 'sudo' 'nerdctl' 'start' 'gateway'",
+    )
+    expect(log).toContain("lima-browseros-vm 'sudo' 'nerdctl' 'stop' 'gateway'")
+    expect(log).toContain(
+      "lima-browseros-vm 'sudo' 'nerdctl' 'rm' '-f' 'gateway'",
     )
     expect(log).toContain(
-      "lima-browseros-vm 'nerdctl' 'ps' '--format' '{{.Names}}'",
+      "lima-browseros-vm 'sudo' 'nerdctl' 'exec' 'gateway' 'node' '--version'",
+    )
+    expect(log).toContain(
+      "lima-browseros-vm 'sudo' 'nerdctl' 'ps' '--format' '{{.Names}}'",
     )
   })
 
@@ -172,7 +176,7 @@ describe('ContainerCli', () => {
 
     expect(lines).toEqual(['line'])
     await expect(readFile(logPath, 'utf8')).resolves.toContain(
-      `${sshPrefix(sshConfigPath(tempDir))} 'nerdctl' 'logs' '-f' '-n' '0' 'gateway'`,
+      `${sshPrefix(sshConfigPath(tempDir))} 'sudo' 'nerdctl' 'logs' '-f' '-n' '0' 'gateway'`,
     )
   })
 })
