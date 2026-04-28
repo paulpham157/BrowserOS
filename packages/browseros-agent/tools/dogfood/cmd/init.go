@@ -34,10 +34,15 @@ var initCmd = &cobra.Command{
 			cfg.RepoPath = cwd
 		}
 		reader := bufio.NewReader(os.Stdin)
-		cfg.RepoPath = prompt(reader, "Repo path", cfg.RepoPath)
-		cfg.BrowserOSAppPath = prompt(reader, "BrowserOS binary", cfg.BrowserOSAppPath)
+		out := cmd.OutOrStdout()
+		printRepoPathHelp(out)
+		cfg.RepoPath = prompt(out, reader, "Repo path", cfg.RepoPath)
+		cfg.BrowserOSAppPath = prompt(out, reader, "BrowserOS binary", cfg.BrowserOSAppPath)
 		profiles, _ := profile.ReadProfiles(cfg.SourceUserDataDir)
-		cfg.SourceProfileDir = chooseProfile(reader, profiles)
+		if len(profiles) > 0 {
+			printSourceProfileHelp(out)
+		}
+		cfg.SourceProfileDir = chooseProfile(out, reader, profiles)
 		cfg.Resolve()
 		if err := cfg.Validate(); err != nil {
 			return err
@@ -64,8 +69,19 @@ func printInitNextSteps(out io.Writer, path string) {
 	fmt.Fprintf(out, "  %s %s\n", labelStyle.Sprint("Background:"), commandStyle.Sprint("browseros-dogfood start-background"))
 }
 
-func prompt(r *bufio.Reader, label string, current string) string {
-	fmt.Printf("%s [%s]: ", labelStyle.Sprint(label), pathStyle.Sprint(current))
+func printRepoPathHelp(out io.Writer) {
+	fmt.Fprintln(out, "Repo path is the root BrowserOS repo clone for alpha dogfood.")
+	fmt.Fprintln(out, "Use a separate clone from your everyday dev checkout if you can.")
+	fmt.Fprintln(out, "Example: /Users/you/code/browseros-alpha, not packages/browseros-agent.")
+}
+
+func printSourceProfileHelp(out io.Writer) {
+	fmt.Fprintln(out, "Choose the installed BrowserOS profile you normally use.")
+	fmt.Fprintln(out, "  Dogfood copies it into a separate dev profile.")
+}
+
+func prompt(out io.Writer, r *bufio.Reader, label string, current string) string {
+	fmt.Fprintf(out, "%s [%s]: ", labelStyle.Sprint(label), pathStyle.Sprint(current))
 	line, _ := r.ReadString('\n')
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -75,20 +91,20 @@ func prompt(r *bufio.Reader, label string, current string) string {
 	return config.ExpandTilde(line, home)
 }
 
-func chooseProfile(r *bufio.Reader, profiles []profile.BrowserProfile) string {
+func chooseProfile(out io.Writer, r *bufio.Reader, profiles []profile.BrowserProfile) string {
 	if len(profiles) == 0 {
 		return "Default"
 	}
-	fmt.Printf("%s %d BrowserOS profiles:\n", labelStyle.Sprint("Found"), len(profiles))
+	fmt.Fprintf(out, "%s %d BrowserOS profiles:\n", labelStyle.Sprint("Found"), len(profiles))
 	for i, p := range profiles {
 		email := ""
 		if p.Email != "" {
 			email = " " + p.Email
 		}
-		fmt.Printf("  %s %s (%s)%s\n", commandStyle.Sprintf("%d.", i+1), p.Name, pathStyle.Sprint(p.Dir), email)
+		fmt.Fprintf(out, "  %s %s (%s)%s\n", commandStyle.Sprintf("%d.", i+1), p.Name, pathStyle.Sprint(p.Dir), email)
 	}
 	for {
-		fmt.Printf("%s [1]: ", labelStyle.Sprint("Select source profile"))
+		fmt.Fprintf(out, "%s [1]: ", labelStyle.Sprint("Select source profile"))
 		line, _ := r.ReadString('\n')
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -98,7 +114,7 @@ func chooseProfile(r *bufio.Reader, profiles []profile.BrowserProfile) string {
 		if err == nil && n >= 1 && n <= len(profiles) {
 			return profiles[n-1].Dir
 		}
-		fmt.Println(warnStyle.Sprint("Choose a listed number."))
+		fmt.Fprintln(out, warnStyle.Sprint("Choose a listed number."))
 	}
 }
 
