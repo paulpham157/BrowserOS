@@ -1,0 +1,53 @@
+name: Sync internal-docs submodule
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Bump internal-docs submodule pointer on dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rewrite SSH submodule URL to HTTPS-with-token
+        env:
+          TOKEN: ${{ secrets.INTERNAL_DOCS_SYNC_TOKEN }}
+        run: |
+          git config --global "url.https://x-access-token:${TOKEN}@github.com/.insteadOf" "git@github.com:"
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.INTERNAL_DOCS_SYNC_TOKEN }}
+          submodules: true
+          ref: dev
+          fetch-depth: 50
+
+      - name: Bump submodule pointer if internal-docs has new commits
+        env:
+          GH_TOKEN: ${{ secrets.INTERNAL_DOCS_SYNC_TOKEN }}
+        run: |
+          set -e
+
+          # Skip if submodule not yet configured (handoff window before someone adds it)
+          if ! git config --file .gitmodules --get-regexp '^submodule\..internal-docs\.path$' >/dev/null 2>&1; then
+            echo "internal-docs submodule not yet configured in .gitmodules. Skipping."
+            exit 0
+          fi
+
+          git submodule update --remote --merge .internal-docs
+
+          if git diff --quiet .internal-docs; then
+            echo "No internal-docs changes to sync."
+            exit 0
+          fi
+
+          git config user.name  "browseros-bot"
+          git config user.email "bot@browseros.ai"
+          git add .internal-docs
+          git commit -m "chore: sync internal-docs submodule"
+
+          # Rebase onto latest dev to absorb any commits that landed during the run,
+          # then push. set -e takes care of failing the run on rebase conflict.
+          git pull --rebase origin dev
+          git push origin dev
