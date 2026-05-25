@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser_list.h b/chrome/browser/ui/browser_list.h
-index a8f0e5b82d586..ac636aa584728 100644
+index 52cf009c5676d..2c1affc7aaeb7 100644
 --- a/chrome/browser/ui/browser_list.h
 +++ b/chrome/browser/ui/browser_list.h
-@@ -25,6 +25,12 @@ class Browser;
+@@ -26,6 +26,12 @@ class Browser;
  class BrowserWindowInterface;
  class BrowserListObserver;
  
@@ -15,7 +15,7 @@ index a8f0e5b82d586..ac636aa584728 100644
  // Maintains a list of Browser objects.
  class BrowserList {
   public:
-@@ -37,6 +43,11 @@ class BrowserList {
+@@ -38,6 +44,11 @@ class BrowserList {
  
    static BrowserList* GetInstance();
  

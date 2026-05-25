@@ -1,6 +1,6 @@
 diff --git a/chrome/utility/importer/browseros/chrome_decryptor_mac.mm b/chrome/utility/importer/browseros/chrome_decryptor_mac.mm
 new file mode 100644
-index 0000000000000..caabfa17010ab
+index 0000000000000..d9aadb0466ace
 --- /dev/null
 +++ b/chrome/utility/importer/browseros/chrome_decryptor_mac.mm
 @@ -0,0 +1,191 @@
@@ -16,7 +16,7 @@ index 0000000000000..caabfa17010ab
 +#include "base/logging.h"
 +#include "base/strings/string_util.h"
 +#include "build/build_config.h"
-+#include "crypto/apple/keychain.h"
++#include "crypto/apple/keychain_v2.h"
 +#include "third_party/boringssl/src/include/openssl/evp.h"
 +
 +#if BUILDFLAG(IS_MAC)
@@ -46,11 +46,11 @@ index 0000000000000..caabfa17010ab
 +
 +// Retrieve Chrome's password from macOS Keychain using the modern API
 +bool GetChromePasswordFromKeychain(std::string* password) {
-+  std::unique_ptr<crypto::apple::Keychain> keychain =
-+      crypto::apple::Keychain::DefaultKeychain();
++  crypto::apple::KeychainV2& keychain =
++      crypto::apple::KeychainV2::GetInstance();
 +
-+  auto result = keychain->FindGenericPassword(kChromeKeychainService,
-+                                               kChromeKeychainAccount);
++  auto result = keychain.FindGenericPassword(kChromeKeychainService,
++                                             kChromeKeychainAccount);
 +
 +  if (!result.has_value()) {
 +    OSStatus error = result.error();

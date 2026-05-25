@@ -1,8 +1,8 @@
 diff --git a/ui/views/widget/widget.h b/ui/views/widget/widget.h
-index fe512d76f83fa..14493c081492f 100644
+index 93a47570d4854..04de4cc102ba5 100644
 --- a/ui/views/widget/widget.h
 +++ b/ui/views/widget/widget.h
-@@ -504,6 +504,14 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
+@@ -501,6 +501,14 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
      // If true then the widget uses software compositing.
      bool force_software_compositing = false;
  

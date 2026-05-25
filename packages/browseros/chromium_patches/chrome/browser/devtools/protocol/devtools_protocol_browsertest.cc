@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/devtools/protocol/devtools_protocol_browsertest.cc b/chrome/browser/devtools/protocol/devtools_protocol_browsertest.cc
-index e57b0883b725f..58bfa8d8f5412 100644
+index 6a3a8ba7d7997..12cd7a001c5e6 100644
 --- a/chrome/browser/devtools/protocol/devtools_protocol_browsertest.cc
 +++ b/chrome/browser/devtools/protocol/devtools_protocol_browsertest.cc
-@@ -20,6 +20,7 @@
+@@ -21,6 +21,7 @@
  #include "base/test/test_switches.h"
  #include "base/test/values_test_util.h"
  #include "base/threading/thread_restrictions.h"
@@ -18,7 +18,7 @@ index e57b0883b725f..58bfa8d8f5412 100644
  #include "chrome/browser/preloading/preloading_prefs.h"
  #include "chrome/browser/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations_mixin.h"
  #include "chrome/browser/profiles/profile.h"
-@@ -43,6 +45,8 @@
+@@ -41,6 +43,8 @@
  #include "components/content_settings/core/browser/cookie_settings.h"
  #include "components/content_settings/core/common/pref_names.h"
  #include "components/custom_handlers/protocol_handler_registry.h"
@@ -27,7 +27,7 @@ index e57b0883b725f..58bfa8d8f5412 100644
  #include "components/infobars/content/content_infobar_manager.h"
  #include "components/infobars/core/infobar.h"
  #include "components/infobars/core/infobar_delegate.h"
-@@ -2202,6 +2206,93 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
+@@ -2121,6 +2125,93 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
    SendCommandSync("Target.getTargets");
    EXPECT_EQ(2u, result()->FindList("targetInfos")->size());
  }

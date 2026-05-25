@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
-index 31b360347f2bc..1192c83265e9a 100644
+index c442fa1941dff..583202c7c8873 100644
 --- a/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
 +++ b/chrome/browser/ui/webui/side_panel/customize_chrome/customize_toolbar/customize_toolbar_handler.cc
-@@ -92,6 +92,11 @@ MojoActionForChromeAction(actions::ActionId action_id) {
+@@ -94,6 +94,11 @@ MojoActionForChromeAction(actions::ActionId action_id) {
        return side_panel::customize_chrome::mojom::ActionId::kSplitTab;
      case kActionSidePanelShowContextualTasks:
        return side_panel::customize_chrome::mojom::ActionId::kContextualTasks;
@@ -14,7 +14,7 @@ index 31b360347f2bc..1192c83265e9a 100644
      default:
        return std::nullopt;
    }
-@@ -152,6 +157,11 @@ std::optional<actions::ActionId> ChromeActionForMojoAction(
+@@ -154,6 +159,11 @@ std::optional<actions::ActionId> ChromeActionForMojoAction(
        return kActionSplitTab;
      case side_panel::customize_chrome::mojom::ActionId::kContextualTasks:
        return kActionSidePanelShowContextualTasks;
@@ -26,7 +26,7 @@ index 31b360347f2bc..1192c83265e9a 100644
      default:
        return std::nullopt;
    }
-@@ -342,6 +352,10 @@ void CustomizeToolbarHandler::ListActions(ListActionsCallback callback) {
+@@ -344,6 +354,10 @@ void CustomizeToolbarHandler::ListActions(ListActionsCallback callback) {
               side_panel::customize_chrome::mojom::CategoryId::kYourChrome);
    add_action(kActionSidePanelShowReadingList,
               side_panel::customize_chrome::mojom::CategoryId::kYourChrome);

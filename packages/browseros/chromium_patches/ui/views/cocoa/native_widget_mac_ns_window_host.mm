@@ -1,8 +1,8 @@
 diff --git a/ui/views/cocoa/native_widget_mac_ns_window_host.mm b/ui/views/cocoa/native_widget_mac_ns_window_host.mm
-index e40d0d5be1c48..0f4940de7214b 100644
+index 2914e7149f24f..73fafc062fcd8 100644
 --- a/ui/views/cocoa/native_widget_mac_ns_window_host.mm
 +++ b/ui/views/cocoa/native_widget_mac_ns_window_host.mm
-@@ -475,6 +475,7 @@ void NativeWidgetMacNSWindowHost::InitWindow(
+@@ -492,6 +492,7 @@ void HandleAccelerator(const ui::Accelerator& accelerator,
      window_params->is_translucent =
          params.opacity == Widget::InitParams::WindowOpacity::kTranslucent;
      window_params->is_tooltip = is_tooltip;

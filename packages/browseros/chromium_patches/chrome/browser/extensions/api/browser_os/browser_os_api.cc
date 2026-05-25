@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/extensions/api/browser_os/browser_os_api.cc b/chrome/browser/extensions/api/browser_os/browser_os_api.cc
 new file mode 100644
-index 0000000000000..7a9f8d92f7668
+index 0000000000000..f24401393adbc
 --- /dev/null
 +++ b/chrome/browser/extensions/api/browser_os/browser_os_api.cc
 @@ -0,0 +1,492 @@
@@ -27,7 +27,7 @@ index 0000000000000..7a9f8d92f7668
 +#include "chrome/browser/extensions/api/browser_os/browser_os_api_utils.h"
 +#include "chrome/browser/platform_util.h"
 +#include "chrome/browser/profiles/profile.h"
-+#include "chrome/browser/ui/chrome_select_file_policy.h"
++#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 +#include "chrome/common/extensions/api/browser_os.h"
 +#include "components/prefs/pref_service.h"
 +#include "content/public/browser/render_frame_host.h"

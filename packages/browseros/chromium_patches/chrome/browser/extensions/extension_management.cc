@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/extensions/extension_management.cc b/chrome/browser/extensions/extension_management.cc
-index bb0e7b5cba7e0..f3d6a10d2605e 100644
+index bea1864156f76..eeb9c66eaae67 100644
 --- a/chrome/browser/extensions/extension_management.cc
 +++ b/chrome/browser/extensions/extension_management.cc
 @@ -25,6 +25,8 @@
@@ -9,9 +9,9 @@ index bb0e7b5cba7e0..f3d6a10d2605e 100644
 +#include "chrome/browser/browser_features.h"
 +#include "chrome/browser/browseros/core/browseros_constants.h"
  #include "chrome/browser/enterprise/util/managed_browser_utils.h"
- #include "chrome/browser/extensions/cws_info_service.h"
+ #include "chrome/browser/extensions/cws_info_service_factory.h"
  #include "chrome/browser/extensions/extension_management_constants.h"
-@@ -277,6 +279,15 @@ bool ExtensionManagement::IsUpdateUrlOverridden(const ExtensionId& id) {
+@@ -272,6 +274,15 @@ bool ExtensionManagement::IsUpdateUrlOverridden(const ExtensionId& id) {
  }
  
  GURL ExtensionManagement::GetEffectiveUpdateURL(const Extension& extension) {
@@ -27,7 +27,7 @@ index bb0e7b5cba7e0..f3d6a10d2605e 100644
    if (IsUpdateUrlOverridden(extension.id())) {
      DCHECK(!extension.was_installed_by_default())
          << "Update URL should not be overridden for default-installed "
-@@ -669,6 +680,14 @@ ExtensionIdSet ExtensionManagement::GetForcePinnedList() const {
+@@ -664,6 +675,14 @@ ExtensionIdSet ExtensionManagement::GetForcePinnedList() const {
        force_pinned_list.insert(entry.first);
      }
    }

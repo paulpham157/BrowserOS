@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/ui_features.cc b/chrome/browser/ui/ui_features.cc
-index 45501ce4b433d..347348bcc362d 100644
+index 6db423701529a..38465f7bf03c5 100644
 --- a/chrome/browser/ui/ui_features.cc
 +++ b/chrome/browser/ui/ui_features.cc
-@@ -126,6 +126,14 @@ BASE_FEATURE(kSideBySide, base::FEATURE_ENABLED_BY_DEFAULT);
- 
- BASE_FEATURE(kSideBySideLinkMenuNewBadge, base::FEATURE_ENABLED_BY_DEFAULT);
+@@ -154,6 +154,14 @@ BASE_FEATURE_PARAM(int,
+                    "max_distance_threshold",
+                    20);
  
 +BASE_FEATURE(kThirdPartyLlmPanel,
 +             "ThirdPartyLlmPanel",

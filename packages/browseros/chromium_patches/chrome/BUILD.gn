@@ -1,8 +1,8 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
-index 0753724487493..e27ad963c66b5 100644
+index cc98a1463c539..3901d69034a1e 100644
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -18,6 +18,7 @@ import("//build/config/win/manifest.gni")
+@@ -17,6 +17,7 @@ import("//build/config/win/manifest.gni")
  import("//build/private_code_test/private_code_test.gni")
  import("//build/toolchain/toolchain.gni")
  import("//chrome/browser/buildflags.gni")
@@ -10,16 +10,16 @@ index 0753724487493..e27ad963c66b5 100644
  import("//chrome/chrome_paks.gni")
  import("//chrome/common/features.gni")
  import("//chrome/process_version_rc_template.gni")
-@@ -369,6 +370,8 @@ if (!is_android && !is_mac) {
+@@ -376,6 +377,8 @@ if (!is_android && !is_mac) {
      }
  
      data_deps += [
 +      "//chrome/browser/browseros/bundled_extensions",
 +      "//chrome/browser/browseros/server:browseros_server_resources",
        "//chrome/browser/resources/media/mei_preload:component",
+       "//chrome/browser/web_applications/isolated_web_apps/key_distribution/preload:component",
        "//components/privacy_sandbox/privacy_sandbox_attestations/preload:component",
-       "//components/webapps/isolated_web_apps/preload:component",
-@@ -525,6 +528,7 @@ if (is_win) {
+@@ -527,6 +530,7 @@ if (is_win) {
        ":chrome_versioned_bundle_data",
        "//base/allocator:early_zone_registration_apple",
        "//build:branding_buildflags",
@@ -27,7 +27,7 @@ index 0753724487493..e27ad963c66b5 100644
        "//chrome/common:buildflags",
        "//chrome/common:version_header",
      ]
-@@ -1197,10 +1201,19 @@ if (is_win) {
+@@ -1198,6 +1202,9 @@ if (is_win) {
        bundle_deps += [ ":preinstalled_apps" ]
      }
  
@@ -37,6 +37,9 @@ index 0753724487493..e27ad963c66b5 100644
      if (!use_static_angle) {
        bundle_deps += [ ":angle_binaries" ]
      }
+@@ -1205,6 +1212,12 @@ if (is_win) {
+     bundle_deps +=
+         [ "//third_party/search_engines_data:prepopulated_engines_bundle_data" ]
  
 +    if (enable_sparkle) {
 +      bundle_deps += [ "//third_party/sparkle:sparkle_framework_bundle" ]

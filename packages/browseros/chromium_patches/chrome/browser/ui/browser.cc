@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser.cc b/chrome/browser/ui/browser.cc
-index ca32d6faace3a..b809394eb8b71 100644
+index 9603137595182..736e1cea7e970 100644
 --- a/chrome/browser/ui/browser.cc
 +++ b/chrome/browser/ui/browser.cc
-@@ -42,6 +42,7 @@
+@@ -45,6 +45,7 @@
  #include "chrome/browser/background/background_contents_service_factory.h"
  #include "chrome/browser/bookmarks/bookmark_model_factory.h"
  #include "chrome/browser/browser_process.h"
@@ -10,7 +10,7 @@ index ca32d6faace3a..b809394eb8b71 100644
  #include "chrome/browser/buildflags.h"
  #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
  #include "chrome/browser/content_settings/mixed_content_settings_tab_helper.h"
-@@ -584,6 +585,7 @@ Browser::Browser(const CreateParams& params)
+@@ -599,6 +600,7 @@ Browser::Browser(const CreateParams& params)
        is_trusted_source_(params.trusted_source),
        session_id_(SessionID::NewUnique()),
        omit_from_session_restore_(params.omit_from_session_restore),
@@ -18,7 +18,7 @@ index ca32d6faace3a..b809394eb8b71 100644
        should_trigger_session_restore_(params.should_trigger_session_restore),
        cancel_download_confirmation_state_(
            CancelDownloadConfirmationState::kNotPrompted),
-@@ -672,6 +674,10 @@ Browser::Browser(const CreateParams& params)
+@@ -685,6 +687,10 @@ Browser::Browser(const CreateParams& params)
  }
  
  Browser::~Browser() {
@@ -29,7 +29,7 @@ index ca32d6faace3a..b809394eb8b71 100644
    if (!is_delete_scheduled_) {
      // Guarantee the Browser has performed the necessary cleanup in the
      // `OnWindowClosing()` lifecycle hook. This may not be invoked during
-@@ -1562,6 +1568,19 @@ WebContents* Browser::OpenURL(
+@@ -1516,6 +1522,19 @@ WebContents* Browser::OpenURL(
  ///////////////////////////////////////////////////////////////////////////////
  // Browser, TabStripModelObserver implementation:
  
@@ -49,7 +49,7 @@ index ca32d6faace3a..b809394eb8b71 100644
  void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
                                       const TabStripModelChange& change,
                                       const TabStripSelectionChange& selection) {
-@@ -1579,6 +1598,9 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
+@@ -1533,6 +1552,9 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
        }
        for (const auto& contents : change.GetInsert()->contents) {
          OnTabInsertedAt(contents.contents, contents.index);
@@ -59,7 +59,7 @@ index ca32d6faace3a..b809394eb8b71 100644
        }
        break;
      }
-@@ -1589,6 +1611,9 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
+@@ -1543,6 +1565,9 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
          }
          OnTabDetached(contents.contents,
                        contents.contents == selection.old_contents);
@@ -69,7 +69,7 @@ index ca32d6faace3a..b809394eb8b71 100644
        }
        break;
      }
-@@ -1601,6 +1626,10 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
+@@ -1555,6 +1580,10 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
        auto* replace = change.GetReplace();
        OnTabReplacedAt(replace->old_contents, replace->new_contents,
                        replace->index);
@@ -80,7 +80,7 @@ index ca32d6faace3a..b809394eb8b71 100644
        break;
      }
      case TabStripModelChange::kSelectionOnly:
-@@ -2298,6 +2327,11 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
+@@ -2287,6 +2316,11 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
        source->GetController().GetPendingEntry()
            ? source->GetController().GetPendingEntry()
            : source->GetController().GetLastCommittedEntry();
@@ -92,7 +92,7 @@ index ca32d6faace3a..b809394eb8b71 100644
    if (entry) {
      const GURL& url = entry->GetURL();
      const GURL& virtual_url = entry->GetVirtualURL();
-@@ -2310,15 +2344,18 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
+@@ -2299,15 +2333,18 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
           url.host() == chrome::kChromeUINewTabHost) ||
          (virtual_url.SchemeIs(content::kChromeUIScheme) &&
           virtual_url.host() == chrome::kChromeUINewTabHost)) {

@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/browser_list.cc b/chrome/browser/ui/browser_list.cc
-index 0ff6437a325d1..3446dc27869fb 100644
+index ca9007acd86cc..8117ede5ee811 100644
 --- a/chrome/browser/ui/browser_list.cc
 +++ b/chrome/browser/ui/browser_list.cc
-@@ -128,6 +128,21 @@ void BrowserList::RemoveObserver(BrowserListObserver* observer) {
+@@ -125,6 +125,21 @@ void BrowserList::RemoveObserver(BrowserListObserver* observer) {
    observers_.Get().RemoveObserver(observer);
  }
  
@@ -24,7 +24,7 @@ index 0ff6437a325d1..3446dc27869fb 100644
  // static
  void BrowserList::SetLastActive(Browser* browser) {
    BrowserList* instance = GetInstance();
-@@ -137,6 +152,12 @@ void BrowserList::SetLastActive(Browser* browser) {
+@@ -134,6 +149,12 @@ void BrowserList::SetLastActive(Browser* browser) {
    DCHECK(browser->window())
        << "SetLastActive called for a browser with no window set.";
  

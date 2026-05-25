@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/ui/views/side_panel/clash_of_gpts/clash_of_gpts_window.cc b/chrome/browser/ui/views/side_panel/clash_of_gpts/clash_of_gpts_window.cc
 new file mode 100644
-index 0000000000000..7a44fab1879ef
+index 0000000000000..e173f3d9527a5
 --- /dev/null
 +++ b/chrome/browser/ui/views/side_panel/clash_of_gpts/clash_of_gpts_window.cc
 @@ -0,0 +1,83 @@

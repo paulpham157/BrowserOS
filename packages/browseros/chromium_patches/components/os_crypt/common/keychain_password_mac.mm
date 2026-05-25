@@ -1,8 +1,8 @@
 diff --git a/components/os_crypt/common/keychain_password_mac.mm b/components/os_crypt/common/keychain_password_mac.mm
-index caa0e420956a3..d60a67a8bacb7 100644
+index f240dc22ee391..9d2da65a7198c 100644
 --- a/components/os_crypt/common/keychain_password_mac.mm
 +++ b/components/os_crypt/common/keychain_password_mac.mm
-@@ -35,8 +35,9 @@
+@@ -38,8 +38,9 @@
  const char kDefaultServiceName[] = "Chrome Safe Storage";
  const char kDefaultAccountName[] = "Chrome";
  #else

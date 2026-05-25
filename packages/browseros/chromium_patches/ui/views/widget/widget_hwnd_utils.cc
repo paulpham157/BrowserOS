@@ -1,5 +1,5 @@
 diff --git a/ui/views/widget/widget_hwnd_utils.cc b/ui/views/widget/widget_hwnd_utils.cc
-index 55e5b8a832c9c..ad41487c91e58 100644
+index 56ed7cad8652c..7270fa03e4832 100644
 --- a/ui/views/widget/widget_hwnd_utils.cc
 +++ b/ui/views/widget/widget_hwnd_utils.cc
 @@ -56,6 +56,14 @@ WindowStyles CalculateWindowStylesFromInitParams(

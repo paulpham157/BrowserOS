@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.cc b/chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.cc
-index d9315fa4fa5b0..fbf550745d2a6 100644
+index 0177d0e3bda7c..a38ae2b19fbd2 100644
 --- a/chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.cc
 +++ b/chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.cc
 @@ -16,6 +16,8 @@
@@ -10,7 +10,7 @@ index d9315fa4fa5b0..fbf550745d2a6 100644
 +#include "chrome/browser/browseros/core/browseros_prefs.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/ui/actions/chrome_action_id.h"
- #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
+ #include "chrome/browser/ui/tab_search_feature.h"
 @@ -37,6 +39,23 @@ PinnedToolbarActionsModel::PinnedToolbarActionsModel(Profile* profile)
        base::BindRepeating(&PinnedToolbarActionsModel::UpdatePinnedActionIds,
                            base::Unretained(this)));
@@ -35,7 +35,7 @@ index d9315fa4fa5b0..fbf550745d2a6 100644
    // Initialize the model with the current state of the kPinnedActions pref.
    UpdatePinnedActionIds();
  }
-@@ -236,8 +255,11 @@ void PinnedToolbarActionsModel::MaybeMigrateExistingPinnedStates() {
+@@ -239,8 +258,11 @@ void PinnedToolbarActionsModel::MaybeMigrateExistingPinnedStates() {
    if (!CanUpdate()) {
      return;
    }
@@ -48,7 +48,7 @@ index d9315fa4fa5b0..fbf550745d2a6 100644
      pref_service_->SetBoolean(prefs::kPinnedChromeLabsMigrationComplete, true);
    }
    if (features::HasTabSearchToolbarButton() &&
-@@ -253,6 +275,36 @@ void PinnedToolbarActionsModel::MaybeMigrateExistingPinnedStates() {
+@@ -256,6 +278,36 @@ void PinnedToolbarActionsModel::MaybeMigrateExistingPinnedStates() {
    }
  }
  
@@ -85,7 +85,7 @@ index d9315fa4fa5b0..fbf550745d2a6 100644
  const std::vector<actions::ActionId>&
  PinnedToolbarActionsModel::PinnedActionIds() const {
    return pinned_action_ids_;
-@@ -271,3 +323,20 @@ void PinnedToolbarActionsModel::UpdatePref(
+@@ -274,3 +326,20 @@ void PinnedToolbarActionsModel::UpdatePref(
      list_of_values.Append(id_string.value());
    }
  }

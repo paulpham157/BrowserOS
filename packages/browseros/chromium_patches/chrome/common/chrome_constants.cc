@@ -1,8 +1,8 @@
 diff --git a/chrome/common/chrome_constants.cc b/chrome/common/chrome_constants.cc
-index 298138e77b9f6..0d30768ef87f4 100644
+index 6e30ef11474c4..0a6aaeb85d73b 100644
 --- a/chrome/common/chrome_constants.cc
 +++ b/chrome/common/chrome_constants.cc
-@@ -47,7 +47,7 @@ const base::FilePath::CharType kBrowserProcessExecutableName[] = FPL("chrome");
+@@ -46,7 +46,7 @@ const base::FilePath::CharType kBrowserProcessExecutableName[] = FPL("chrome");
  const base::FilePath::CharType kHelperProcessExecutableName[] =
      FPL("sandboxed_process");
  #elif BUILDFLAG(IS_POSIX)
@@ -11,7 +11,7 @@ index 298138e77b9f6..0d30768ef87f4 100644
  // Helper processes end up with a name of "exe" due to execing via
  // /proc/self/exe.  See bug 22703.
  const base::FilePath::CharType kHelperProcessExecutableName[] = FPL("exe");
-@@ -76,8 +76,8 @@ const base::FilePath::CharType kHelperProcessExecutablePath[] =
+@@ -75,8 +75,8 @@ const base::FilePath::CharType kHelperProcessExecutablePath[] =
  const base::FilePath::CharType kBrowserProcessExecutablePath[] = FPL("chrome");
  const base::FilePath::CharType kHelperProcessExecutablePath[] = FPL("chrome");
  #elif BUILDFLAG(IS_POSIX)

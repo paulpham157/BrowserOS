@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/sessions/session_service_base.cc b/chrome/browser/sessions/session_service_base.cc
-index c4a1664d393c9..263ae4511c8f2 100644
+index 05c5d9430070f..f0eeb34bf651a 100644
 --- a/chrome/browser/sessions/session_service_base.cc
 +++ b/chrome/browser/sessions/session_service_base.cc
-@@ -819,6 +819,11 @@ bool SessionServiceBase::ShouldTrackBrowser(
+@@ -822,6 +822,11 @@ bool SessionServiceBase::ShouldTrackBrowser(
      return false;
    }
  

@@ -1,8 +1,8 @@
 diff --git a/ui/views/widget/desktop_aura/desktop_window_tree_host_win.h b/ui/views/widget/desktop_aura/desktop_window_tree_host_win.h
-index b65ced55f997d..8f9aecfc0fee7 100644
+index a389e96de45c8..befe01b46b1d0 100644
 --- a/ui/views/widget/desktop_aura/desktop_window_tree_host_win.h
 +++ b/ui/views/widget/desktop_aura/desktop_window_tree_host_win.h
-@@ -349,6 +349,12 @@ class VIEWS_EXPORT DesktopWindowTreeHostWin
+@@ -351,6 +351,12 @@ class VIEWS_EXPORT DesktopWindowTreeHostWin
    // True if the window is allow to take screenshots, by default is true.
    bool allow_screenshots_ = true;
  

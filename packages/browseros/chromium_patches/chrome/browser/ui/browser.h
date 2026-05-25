@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser.h b/chrome/browser/ui/browser.h
-index 6dead6a78a90f..03e58a1c1d2a0 100644
+index acdb28d61bada..f7084b9c770ca 100644
 --- a/chrome/browser/ui/browser.h
 +++ b/chrome/browser/ui/browser.h
 @@ -13,6 +13,8 @@
@@ -11,7 +11,7 @@ index 6dead6a78a90f..03e58a1c1d2a0 100644
  #include "base/gtest_prod_util.h"
  #include "base/memory/raw_ptr.h"
  #include "base/memory/scoped_refptr.h"
-@@ -286,6 +288,12 @@ class Browser : public TabStripModelObserver,
+@@ -284,6 +286,12 @@ class Browser : public TabStripModelObserver,
      // Whether this browser was created specifically for dragged tab(s).
      bool in_tab_dragging = false;
  
@@ -24,7 +24,7 @@ index 6dead6a78a90f..03e58a1c1d2a0 100644
      // Supply a custom BrowserWindow implementation, to be used instead of the
      // default. Intended for testing. The resulting Browser takes ownership
      // of `window`.
-@@ -467,6 +475,7 @@ class Browser : public TabStripModelObserver,
+@@ -465,6 +473,7 @@ class Browser : public TabStripModelObserver,
    }
  
    SessionID session_id() const { return session_id_; }
@@ -32,7 +32,7 @@ index 6dead6a78a90f..03e58a1c1d2a0 100644
    bool omit_from_session_restore() const { return omit_from_session_restore_; }
    bool should_trigger_session_restore() const {
      return should_trigger_session_restore_;
-@@ -1283,6 +1292,19 @@ class Browser : public TabStripModelObserver,
+@@ -1271,6 +1280,19 @@ class Browser : public TabStripModelObserver,
    // restore.
    bool omit_from_session_restore_ = false;
  

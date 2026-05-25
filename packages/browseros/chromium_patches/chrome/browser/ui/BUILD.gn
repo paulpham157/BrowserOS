@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 2ec7c847678a0..66767940651d2 100644
+index 5907498d01115..e4e49f3221f22 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -1297,6 +1297,8 @@ static_library("ui") {
+@@ -1349,6 +1349,8 @@ static_library("ui") {
        "webui/settings/search_engines_handler.h",
        "webui/settings/security_settings_provider.cc",
        "webui/settings/security_settings_provider.h",
@@ -11,7 +11,7 @@ index 2ec7c847678a0..66767940651d2 100644
        "webui/settings/settings_clear_browsing_data_handler.cc",
        "webui/settings/settings_clear_browsing_data_handler.h",
        "webui/settings/settings_localized_strings_privacy_sandbox_provider.cc",
-@@ -3225,6 +3227,8 @@ static_library("ui") {
+@@ -3356,6 +3358,8 @@ static_library("ui") {
        "views/frame/immersive_mode_overlay_views_mac.mm",
        "views/tab_contents/chrome_web_contents_view_delegate_views_mac.h",
        "views/tab_contents/chrome_web_contents_view_delegate_views_mac.mm",

@@ -1,8 +1,8 @@
 diff --git a/ui/views/widget/desktop_aura/desktop_window_tree_host_win.cc b/ui/views/widget/desktop_aura/desktop_window_tree_host_win.cc
-index 3a02cb67eb114..41503dadbfbab 100644
+index 4c1c0c60b69f1..9995bbc3223e5 100644
 --- a/ui/views/widget/desktop_aura/desktop_window_tree_host_win.cc
 +++ b/ui/views/widget/desktop_aura/desktop_window_tree_host_win.cc
-@@ -169,6 +169,7 @@ void DesktopWindowTreeHostWin::FinishTouchDrag(gfx::Point screen_point) {
+@@ -170,6 +170,7 @@ void DesktopWindowTreeHostWin::FinishTouchDrag(gfx::Point screen_point) {
  // DesktopWindowTreeHostWin, DesktopWindowTreeHost implementation:
  
  void DesktopWindowTreeHostWin::Init(const Widget::InitParams& params) {
@@ -10,7 +10,7 @@ index 3a02cb67eb114..41503dadbfbab 100644
    wm::SetAnimationHost(content_window(), this);
    if (params.type == Widget::InitParams::TYPE_WINDOW &&
        !params.remove_standard_frame) {
-@@ -313,6 +314,13 @@ void DesktopWindowTreeHostWin::Show(ui::mojom::WindowShowState show_state,
+@@ -314,6 +315,13 @@ void DesktopWindowTreeHostWin::Show(ui::mojom::WindowShowState show_state,
                                      const gfx::Rect& restore_bounds) {
    OnAcceleratedWidgetMadeVisible(true);
  

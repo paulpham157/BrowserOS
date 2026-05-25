@@ -1,24 +1,32 @@
-diff --git a/chrome/browser/ui/views/side_panel/side_panel_action_callback.cc b/chrome/browser/ui/views/side_panel/side_panel_action_callback.cc
-index fa5c515c4a6c1..7eb33de899151 100644
---- a/chrome/browser/ui/views/side_panel/side_panel_action_callback.cc
-+++ b/chrome/browser/ui/views/side_panel/side_panel_action_callback.cc
-@@ -4,10 +4,15 @@
+diff --git a/chrome/browser/ui/side_panel/side_panel_action_callback.cc b/chrome/browser/ui/side_panel/side_panel_action_callback.cc
+index f81e396170a79..c4d7abeeac7a6 100644
+--- a/chrome/browser/ui/side_panel/side_panel_action_callback.cc
++++ b/chrome/browser/ui/side_panel/side_panel_action_callback.cc
+@@ -4,6 +4,13 @@
  
- #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
+ #include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
  
++#include <optional>
++
 +#include "base/logging.h"
 +#include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
 +#include "chrome/browser/extensions/extension_tab_util.h"
 +#include "chrome/browser/profiles/profile.h"
++
+ // TODO(crbug.com/492550611): Remove once we only need BWI.
+ #if !BUILDFLAG(IS_ANDROID)
  #include "chrome/browser/ui/browser.h"
+@@ -12,6 +19,9 @@
  #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
- #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+ #include "chrome/browser/ui/side_panel/side_panel_ui.h"
++#include "components/tabs/public/tab_interface.h"
++#include "content/public/browser/web_contents.h"
 +#include "extensions/browser/extension_registry.h"
  
  namespace {
  constexpr std::underlying_type_t<SidePanelOpenTrigger>
-@@ -34,3 +39,60 @@ actions::ActionItem::InvokeActionCallback CreateToggleSidePanelActionCallback(
+@@ -41,3 +51,62 @@ actions::ActionItem::InvokeActionCallback CreateToggleSidePanelActionCallback(
        },
        key, bwi);
  }
@@ -33,9 +41,13 @@ index fa5c515c4a6c1..7eb33de899151 100644
 +        LOG(INFO) << "browseros: Toolbar action clicked for extension="
 +                  << extension_id;
 +
-+        // Get the active tab.
-+        content::WebContents* active_contents =
-+            bwi->GetActiveTabInterface()->GetContents();
++        tabs::TabInterface* active_tab = bwi->GetActiveTabInterface();
++        if (!active_tab) {
++          LOG(WARNING) << "browseros: No active tab";
++          return;
++        }
++
++        content::WebContents* active_contents = active_tab->GetContents();
 +        if (!active_contents) {
 +          LOG(WARNING) << "browseros: No active tab contents";
 +          return;
@@ -44,7 +56,6 @@ index fa5c515c4a6c1..7eb33de899151 100644
 +        int tab_id = extensions::ExtensionTabUtil::GetTabId(active_contents);
 +        LOG(INFO) << "browseros: Active tab_id=" << tab_id;
 +
-+        // Get the profile and extension.
 +        Profile* profile =
 +            Profile::FromBrowserContext(active_contents->GetBrowserContext());
 +        const extensions::Extension* extension =
@@ -57,8 +68,6 @@ index fa5c515c4a6c1..7eb33de899151 100644
 +          return;
 +        }
 +
-+        // Use BrowserosToggleSidePanelForTab which auto-registers contextual
-+        // options.
 +        extensions::SidePanelService* service =
 +            extensions::SidePanelService::Get(profile);
 +        if (!service) {
@@ -73,9 +82,10 @@ index fa5c515c4a6c1..7eb33de899151 100644
 +
 +        if (!result.has_value()) {
 +          LOG(WARNING) << "browseros: Toggle failed: " << result.error();
-+        } else {
-+          LOG(INFO) << "browseros: Toggle result: " << result.value();
++          return;
 +        }
++
++        LOG(INFO) << "browseros: Toggle result: " << result.value();
 +      },
 +      extension_id, bwi);
 +}

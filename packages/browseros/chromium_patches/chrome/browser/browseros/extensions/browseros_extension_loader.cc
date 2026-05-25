@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/browseros/extensions/browseros_extension_loader.cc b/chrome/browser/browseros/extensions/browseros_extension_loader.cc
 new file mode 100644
-index 0000000000000..fdb6be443f25b
+index 0000000000000..70ad8710a39b7
 --- /dev/null
 +++ b/chrome/browser/browseros/extensions/browseros_extension_loader.cc
 @@ -0,0 +1,269 @@
@@ -18,7 +18,7 @@ index 0000000000000..fdb6be443f25b
 +#include "base/version.h"
 +#include "chrome/browser/browser_features.h"
 +#include "chrome/browser/browseros/core/browseros_constants.h"
-+#include "chrome/browser/extensions/crx_installer.h"
++#include "extensions/browser/crx_installer.h"
 +#include "chrome/browser/extensions/external_provider_impl.h"
 +#include "chrome/browser/extensions/updater/extension_updater.h"
 +#include "chrome/browser/profiles/profile.h"

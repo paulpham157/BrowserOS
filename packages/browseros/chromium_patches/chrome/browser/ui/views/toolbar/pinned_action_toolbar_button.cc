@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
-index f8298702050da..980853c953c22 100644
+index cb5f33a2c5f4c..75508cf2a0eea 100644
 --- a/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
 +++ b/chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.cc
 @@ -8,6 +8,12 @@
@@ -9,21 +9,21 @@ index f8298702050da..980853c953c22 100644
 +#include "chrome/browser/browseros/core/browseros_action_utils.h"
 +#include "chrome/browser/browseros/core/browseros_prefs.h"
 +#include "chrome/browser/ui/actions/chrome_action_id.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
++#include "chrome/browser/ui/side_panel/side_panel_entry.h"
++#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 +#include "chrome/common/extensions/extension_constants.h"
  #include "base/metrics/user_metrics.h"
+ #include "base/notreached.h"
  #include "base/strings/strcat.h"
- #include "chrome/app/vector_icons/vector_icons.h"
 @@ -30,6 +36,7 @@
  #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
  #include "chrome/browser/ui/web_applications/app_browser_controller.h"
  #include "chrome/grit/generated_resources.h"
 +#include "third_party/skia/include/core/SkColor.h"
  #include "ui/actions/action_id.h"
- #include "ui/actions/action_utils.h"
  #include "ui/actions/actions.h"
-@@ -43,6 +50,8 @@
+ #include "ui/base/metadata/metadata_impl_macros.h"
+@@ -42,6 +49,8 @@
  #include "ui/views/controls/button/button_controller.h"
  #include "ui/views/view_class_properties.h"
  #include "ui/views/view_utils.h"
@@ -32,7 +32,7 @@ index f8298702050da..980853c953c22 100644
  
  namespace {
  // Width of the status indicator shown across the button.
-@@ -85,6 +94,28 @@ PinnedActionToolbarButton::PinnedActionToolbarButton(
+@@ -86,6 +95,28 @@ PinnedActionToolbarButton::PinnedActionToolbarButton(
    GetViewAccessibility().SetDescription(
        std::u16string(), ax::mojom::DescriptionFrom::kAttributeExplicitlyEmpty);
  

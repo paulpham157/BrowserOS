@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/resources/settings/route.ts b/chrome/browser/resources/settings/route.ts
-index a116759bfcca4..270945c27b3c4 100644
+index 1503074a46519..6bfcc19577dd9 100644
 --- a/chrome/browser/resources/settings/route.ts
 +++ b/chrome/browser/resources/settings/route.ts
-@@ -165,6 +165,7 @@ function createRoutes(): SettingsRoutes {
+@@ -161,6 +161,7 @@ function createRoutes(): SettingsRoutes {
  
    // Root page.
    r.BASIC = new Route('/');

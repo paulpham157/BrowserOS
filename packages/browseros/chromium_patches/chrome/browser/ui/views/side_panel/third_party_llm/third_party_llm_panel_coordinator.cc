@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/ui/views/side_panel/third_party_llm/third_party_llm_panel_coordinator.cc b/chrome/browser/ui/views/side_panel/third_party_llm/third_party_llm_panel_coordinator.cc
 new file mode 100644
-index 0000000000000..9eea7f83e53dd
+index 0000000000000..387f32e0d07a5
 --- /dev/null
 +++ b/chrome/browser/ui/views/side_panel/third_party_llm/third_party_llm_panel_coordinator.cc
 @@ -0,0 +1,1192 @@
@@ -27,10 +27,10 @@ index 0000000000000..9eea7f83e53dd
 +#include "chrome/browser/ui/browser_window.h"
 +#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 +#include "chrome/browser/ui/views/chrome_layout_provider.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
++#include "chrome/browser/ui/side_panel/side_panel_entry.h"
++#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
++#include "chrome/browser/ui/side_panel/side_panel_registry.h"
++#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 +#include "chrome/grit/generated_resources.h"
 +#include "content/public/browser/web_contents.h"
 +#include "ui/base/l10n/l10n_util.h"

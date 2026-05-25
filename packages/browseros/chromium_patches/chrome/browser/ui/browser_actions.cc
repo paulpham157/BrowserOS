@@ -1,30 +1,31 @@
 diff --git a/chrome/browser/ui/browser_actions.cc b/chrome/browser/ui/browser_actions.cc
-index 19d0181ac8285..5bc3edd1fff8e 100644
+index 8a43e7c2fcde5..95eff82226b48 100644
 --- a/chrome/browser/ui/browser_actions.cc
 +++ b/chrome/browser/ui/browser_actions.cc
-@@ -14,6 +14,7 @@
- #include "base/functional/bind.h"
- #include "base/functional/callback_helpers.h"
+@@ -17,6 +17,7 @@
+ #include "base/metrics/user_metrics_action.h"
+ #include "build/branding_buildflags.h"
  #include "chrome/app/chrome_command_ids.h"
 +#include "chrome/grit/theme_resources.h"
  #include "chrome/app/vector_icons/vector_icons.h"
  #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
  #include "chrome/browser/devtools/devtools_window.h"
-@@ -23,6 +24,13 @@
+@@ -31,7 +32,14 @@
  #include "chrome/browser/sharing_hub/sharing_hub_features.h"
  #include "chrome/browser/ui/actions/chrome_action_id.h"
  #include "chrome/browser/ui/actions/chrome_actions.h"
-+#include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
 +#include "chrome/browser/browseros/core/browseros_constants.h"
++#include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
 +#include "chrome/browser/extensions/extension_tab_util.h"
 +#include "chrome/browser/infobars/simple_alert_infobar_creator.h"
-+#include "components/infobars/content/content_infobar_manager.h"
+ #include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
 +#include "chrome/browser/ui/extensions/extension_side_panel_utils.h"
++#include "components/infobars/content/content_infobar_manager.h"
 +#include "extensions/browser/extension_registry.h"
  #include "chrome/browser/ui/autofill/address_bubbles_icon_controller.h"
  #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
  #include "chrome/browser/ui/autofill/payments/filled_card_information_bubble_controller_impl.h"
-@@ -273,6 +281,110 @@ void BrowserActions::InitializeBrowserActions() {
+@@ -310,6 +318,110 @@ void BrowserActions::InitializeSidePanelActions() {
              .Build());
    }
  
@@ -129,7 +130,7 @@ index 19d0181ac8285..5bc3edd1fff8e 100644
 +          .SetImage(ui::ImageModel::FromResourceId(IDR_PRODUCT_LOGO_16))
 +          .SetProperty(actions::kActionItemPinnableKey,
 +                       std::underlying_type_t<actions::ActionPinnableState>(
-+                           actions::ActionPinnableState::kNotPinnable))
++                           actions::ActionPinnableState::kEnterpriseControlled))
 +          .Build());
 +
    if (HistorySidePanelCoordinator::IsSupported()) {

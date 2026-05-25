@@ -1,6 +1,6 @@
 diff --git a/chrome/browser/browseros/core/browseros_action_utils.h b/chrome/browser/browseros/core/browseros_action_utils.h
 new file mode 100644
-index 0000000000000..0adfaa4a8ac83
+index 0000000000000..f7e801d662789
 --- /dev/null
 +++ b/chrome/browser/browseros/core/browseros_action_utils.h
 @@ -0,0 +1,70 @@
@@ -18,7 +18,7 @@ index 0000000000000..0adfaa4a8ac83
 +#include "chrome/browser/browseros/core/browseros_constants.h"
 +#include "chrome/browser/ui/actions/chrome_action_id.h"
 +#include "chrome/browser/ui/ui_features.h"
-+#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
++#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
 +#include "chrome/common/chrome_features.h"
 +#include "ui/actions/actions.h"
 +

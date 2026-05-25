@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/browser_finder.cc b/chrome/browser/ui/browser_finder.cc
-index a7e0eb934caaa..5002a1cb3100c 100644
+index 9caa555fd7784..0c3ecb1302ccb 100644
 --- a/chrome/browser/ui/browser_finder.cc
 +++ b/chrome/browser/ui/browser_finder.cc
 @@ -154,6 +154,12 @@ bool BrowserMatches(BrowserWindowInterface* browser,

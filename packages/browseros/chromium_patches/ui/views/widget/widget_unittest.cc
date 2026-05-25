@@ -1,5 +1,5 @@
 diff --git a/ui/views/widget/widget_unittest.cc b/ui/views/widget/widget_unittest.cc
-index 9467ff86dfabb..b6d136d5f27bc 100644
+index 3256fb93c938b..c87a995bb174d 100644
 --- a/ui/views/widget/widget_unittest.cc
 +++ b/ui/views/widget/widget_unittest.cc
 @@ -264,6 +264,14 @@ TEST_F(WidgetTest, WidgetInitParams) {

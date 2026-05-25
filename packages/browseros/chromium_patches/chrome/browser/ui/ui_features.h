@@ -1,10 +1,10 @@
 diff --git a/chrome/browser/ui/ui_features.h b/chrome/browser/ui/ui_features.h
-index 43f876760f130..a1ed839eae250 100644
+index 6ae4ed3c0ecbd..66322a4e987b5 100644
 --- a/chrome/browser/ui/ui_features.h
 +++ b/chrome/browser/ui/ui_features.h
-@@ -156,6 +156,10 @@ BASE_DECLARE_FEATURE(kSideBySide);
- 
- BASE_DECLARE_FEATURE(kSideBySideLinkMenuNewBadge);
+@@ -168,6 +168,10 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplitViewDragAndDropMaxDelay);
+ BASE_DECLARE_FEATURE_PARAM(int, kSplitViewDragAndDropMinDistanceThreshold);
+ BASE_DECLARE_FEATURE_PARAM(int, kSplitViewDragAndDropMaxDistanceThreshold);
  
 +// BrowserOS: feature declarations
 +BASE_DECLARE_FEATURE(kThirdPartyLlmPanel);

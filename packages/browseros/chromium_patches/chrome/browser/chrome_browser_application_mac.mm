@@ -66,7 +66,7 @@ index 0e91128e6ed16..0145e63e89cbc 100644
  // Calling -[NSEvent description] is rather slow to build up the event
  // description. The description is stored in a crash key to aid debugging, so
  // this helper function constructs a shorter, but still useful, description.
-@@ -188,6 +231,8 @@ std::string DescriptionForNSEvent(NSEvent* event) {
+@@ -188,6 +231,8 @@ - (void)finishLaunching {
        base::mac::MacOSVersion() >= 14'00'00 &&
        base::FeatureList::IsEnabled(
            features::kSonomaAccessibilityActivationRefinements);

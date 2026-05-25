@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/resources/settings/settings.ts b/chrome/browser/resources/settings/settings.ts
-index f008482e60b03..b2a8b25b5d090 100644
+index f221bf6cd2c42..f48c0f11cfcd3 100644
 --- a/chrome/browser/resources/settings/settings.ts
 +++ b/chrome/browser/resources/settings/settings.ts
-@@ -39,6 +39,7 @@ export type {OpenWindowProxy} from 'chrome://resources/js/open_window_proxy.js';
+@@ -41,6 +41,7 @@ export type {OpenWindowProxy} from 'chrome://resources/js/open_window_proxy.js';
  export {PluralStringProxyImpl as SettingsPluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
  export {getTrustedHTML} from 'chrome://resources/js/static_types.js';
  export {SettingsAboutPageElement} from './about_page/about_page.js';
