@@ -32,8 +32,6 @@ export const TIMEOUTS = {
 
   // External API calls
   KLAVIS_FETCH: 30_000,
-  SKILLS_FETCH: 15_000,
-  SKILLS_SYNC_INTERVAL: 45 * 60_000,
 
   // Navigation/DOM
   NAVIGATION: 10_000,

@@ -24,8 +24,6 @@ import type { Browser } from '../browser/browser'
 import { logger } from '../lib/logger'
 import { metrics } from '../lib/metrics'
 import { isSoulBootstrap, readSoul } from '../lib/soul'
-import { buildSkillsCatalog } from '../skills/catalog'
-import { loadSkills } from '../skills/loader'
 import { buildFilesystemToolSet } from '../tools/filesystem/build-toolset'
 import type { ToolContext } from '../tools/framework'
 import { buildMemoryToolSet } from '../tools/memory/build-toolset'
@@ -215,11 +213,6 @@ export class AiSdkAgent {
     const soulContent = await readSoul()
     const isBootstrap = await isSoulBootstrap()
 
-    // Load skills catalog for prompt injection
-    const skills = await loadSkills()
-    const skillsCatalog =
-      skills.length > 0 ? buildSkillsCatalog(skills) : undefined
-
     const instructions = buildSystemPrompt({
       userSystemPrompt: config.resolvedConfig.userSystemPrompt,
       exclude: excludeSections,
@@ -231,7 +224,6 @@ export class AiSdkAgent {
       chatMode: config.resolvedConfig.chatMode,
       connectedApps: config.browserContext?.enabledMcpServers,
       declinedApps: config.resolvedConfig.declinedApps,
-      skillsCatalog,
       origin: config.resolvedConfig.origin,
     })
 

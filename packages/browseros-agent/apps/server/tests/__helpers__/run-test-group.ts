@@ -6,7 +6,7 @@ const projectRoot = resolve(import.meta.dir, '..', '..')
 const testsRoot = resolve(projectRoot, 'tests')
 const cleanupScript = resolve(testsRoot, '__helpers__/cleanup.sh')
 const testPreloadPath = './tests/__helpers__/test-env.ts'
-const preferredDirectoryGroups = ['agent', 'api', 'skills', 'tools', 'browser']
+const preferredDirectoryGroups = ['agent', 'api', 'tools', 'browser']
 const ignoredDirectories = new Set(['__fixtures__', '__helpers__'])
 const rootGroupExclusions = new Set(['server.integration.test.ts'])
 const testFilePattern = /\.(test|spec)\.[cm]?[jt]sx?$/
@@ -63,7 +63,7 @@ function getCompositeGroupMembers(group: string): string[] | null {
     return listAllGroups()
   }
   if (group === 'core') {
-    return ['agent', 'api', 'skills', 'root']
+    return ['agent', 'api', 'root']
   }
   return null
 }

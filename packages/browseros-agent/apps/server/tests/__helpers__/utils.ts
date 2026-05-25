@@ -14,7 +14,7 @@ export async function killProcessOnPort(port: number): Promise<void> {
   try {
     console.log(`Finding process on port ${port}...`)
 
-    const pids = execSync(`lsof -ti :${port}`, {
+    const pids = execSync(`lsof -tiTCP:${port} -sTCP:LISTEN`, {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim()

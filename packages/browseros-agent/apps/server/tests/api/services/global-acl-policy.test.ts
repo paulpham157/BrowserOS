@@ -29,7 +29,9 @@ describe('GlobalAclPolicyService', () => {
 
   beforeEach(async () => {
     rootDir = await mkdtemp(join(tmpdir(), 'browseros-acl-test-'))
+    const actualBrowserosDir = await import('../../../src/lib/browseros-dir')
     mock.module('../../../src/lib/browseros-dir', () => ({
+      ...actualBrowserosDir,
       getBrowserosDir: () => rootDir,
     }))
     const mod = await import('../../../src/api/services/acl/global-acl-policy')

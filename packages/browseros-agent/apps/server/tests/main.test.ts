@@ -129,8 +129,6 @@ async function setupApplicationTest() {
   const metricsModule = await import('../src/lib/metrics')
   const sentryModule = await import('../src/lib/sentry')
   const soulModule = await import('../src/lib/soul')
-  const migrateModule = await import('../src/skills/migrate')
-  const remoteSyncModule = await import('../src/skills/remote-sync')
 
   const createHttpServer = spyOn(apiServer, 'createHttpServer')
   createHttpServer.mockImplementation(async () => ({}) as never)
@@ -180,14 +178,6 @@ async function setupApplicationTest() {
   spyOn(sentryModule.Sentry, 'captureException').mockImplementation(() => {})
 
   spyOn(soulModule, 'seedSoulTemplate').mockImplementation(async () => {})
-  spyOn(migrateModule, 'migrateBuiltinSkills').mockImplementation(
-    async () => {},
-  )
-  spyOn(remoteSyncModule, 'syncBuiltinSkills').mockImplementation(
-    async () => {},
-  )
-  spyOn(remoteSyncModule, 'startSkillSync').mockImplementation(() => {})
-  spyOn(remoteSyncModule, 'stopSkillSync').mockImplementation(() => {})
 
   const prewarm = mock(async () => {})
   const tryAutoStart = mock(async () => {})

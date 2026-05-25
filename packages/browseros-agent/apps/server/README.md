@@ -83,15 +83,6 @@ The agent loop uses the [Vercel AI SDK](https://sdk.vercel.ai) to orchestrate mu
 
 The provider factory (`src/agent/provider-factory.ts`) creates AI SDK providers from runtime configuration, supporting hot-swapping between providers without restart.
 
-## Skills System
-
-Skills are custom instruction sets that shape agent behavior:
-
-- **Catalog** (`src/skills/catalog.ts`) — registry of available skills
-- **Defaults** (`src/skills/defaults/`) — built-in skill definitions
-- **Loader** (`src/skills/loader.ts`) — loads skills from local and remote sources
-- **Remote sync** (`src/skills/remote-sync.ts`) — syncs skills from the BrowserOS cloud
-
 ## Dependencies
 
 Notable runtime dependencies worth calling out:
@@ -121,7 +112,6 @@ apps/server/
 │   │   ├── memory/
 │   │   ├── filesystem/
 │   │   └── ...
-│   ├── skills/                # Skills system
 │   ├── lib/                   # Shared utilities
 │   └── rpc.ts                 # JSON-RPC type definitions
 ├── tests/

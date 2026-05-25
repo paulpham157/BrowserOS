@@ -12,7 +12,6 @@ export const EXTERNAL_URLS = {
   CODEGEN_SERVICE: 'https://graph.browseros.com',
   OPENAI_AUTH: 'https://auth.openai.com/oauth/authorize',
   OPENAI_TOKEN: 'https://auth.openai.com/oauth/token',
-  SKILLS_CATALOG: 'https://cdn.browseros.com/skills/v1/catalog.json',
   GITHUB_DEVICE_CODE: 'https://github.com/login/device/code',
   GITHUB_OAUTH_TOKEN: 'https://github.com/login/oauth/access_token',
   GITHUB_COPILOT_API: 'https://api.githubcopilot.com',

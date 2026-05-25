@@ -32,7 +32,6 @@ import { MemoryPage } from './memory/MemoryPage'
 import { ProfilePage } from './profile/ProfilePage'
 import { ScheduledTasksPage } from './scheduled-tasks/ScheduledTasksPage'
 import { SearchProviderPage } from './search-provider/SearchProviderPage'
-import { SkillsPage } from './skills/SkillsPage'
 import { SoulPage } from './soul/SoulPage'
 import { ToolApprovalsPage } from './tool-approvals/ToolApprovalsPage'
 import { UsagePage } from './usage/UsagePage'
@@ -57,7 +56,6 @@ const OptionsRedirect: FC = () => {
     customization: '/settings/customization',
     search: '/settings/search',
     soul: '/home/soul',
-    skills: '/home/skills',
     'jtbd-agent': '/settings/survey',
     scheduled: '/scheduled',
   }
@@ -105,7 +103,6 @@ export const App: FC = () => {
               <Route index element={<NewTab />} />
             )}
             <Route path="soul" element={<SoulPage />} />
-            <Route path="skills" element={<SkillsPage />} />
             <Route path="memory" element={<MemoryPage />} />
           </Route>
 
@@ -181,10 +178,6 @@ export const App: FC = () => {
         <Route
           path="/settings/soul"
           element={<Navigate to="/home/soul" replace />}
-        />
-        <Route
-          path="/settings/skills"
-          element={<Navigate to="/home/skills" replace />}
         />
         <Route
           path="/audit"

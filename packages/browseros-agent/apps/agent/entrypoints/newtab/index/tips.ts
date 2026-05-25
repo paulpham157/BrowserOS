@@ -48,10 +48,6 @@ export const TIPS: Tip[] = [
     text: 'Add MCP servers for Google Calendar, Gmail, Notion, and more to power multi-service automations.',
   },
   {
-    id: 'skills',
-    text: 'Create a Skill if you want the agent to follow the same instructions every time for a task.',
-  },
-  {
     id: 'smart-nudges',
     text: 'If BrowserOS offers to connect an app, saying yes lets it use that app directly next time.',
   },
