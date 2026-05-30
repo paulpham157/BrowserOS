@@ -23,6 +23,10 @@ on:
         description: Publish build to R2/CDN after packaging
         type: boolean
         default: true
+      release_server:
+        description: Build and upload server artifacts before packaging
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -32,6 +36,88 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve_inputs:
+    runs-on: ubuntu-latest
+    outputs:
+      target_ref: ${{ steps.workflow_inputs.outputs.target_ref }}
+      bump_mode: ${{ steps.workflow_inputs.outputs.bump_mode }}
+      commit_version: ${{ steps.workflow_inputs.outputs.commit_version }}
+      upload_to_r2: ${{ steps.workflow_inputs.outputs.upload_to_r2 }}
+      release_server: ${{ steps.workflow_inputs.outputs.release_server }}
+      server_version: ${{ steps.server_version.outputs.server_version }}
+    steps:
+      - name: Resolve workflow inputs
+        id: workflow_inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          NIGHTLY_REF: ${{ vars.BROWSEROS_NIGHTLY_REF }}
+          NIGHTLY_RELEASE_SERVER: ${{ vars.BROWSEROS_NIGHTLY_RELEASE_SERVER }}
+          DISPATCH_BUMP: ${{ inputs.bump }}
+          DISPATCH_COMMIT_VERSION: ${{ inputs.commit_version }}
+          DISPATCH_UPLOAD_TO_R2: ${{ inputs.upload_to_r2 }}
+          DISPATCH_RELEASE_SERVER: ${{ inputs.release_server }}
+          DISPATCH_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            target_ref="${NIGHTLY_REF:-$DEFAULT_BRANCH}"
+            bump_mode="offset+build"
+            commit_version="true"
+            upload_to_r2="true"
+            release_server="${NIGHTLY_RELEASE_SERVER:-auto}"
+          else
+            target_ref="$DISPATCH_REF"
+            bump_mode="${DISPATCH_BUMP:-offset+build}"
+            commit_version="${DISPATCH_COMMIT_VERSION:-false}"
+            upload_to_r2="${DISPATCH_UPLOAD_TO_R2:-true}"
+            release_server="${DISPATCH_RELEASE_SERVER:-true}"
+          fi
+
+          if [ "$release_server" = "auto" ]; then
+            if [ "$target_ref" = "$DEFAULT_BRANCH" ]; then
+              release_server="true"
+            else
+              release_server="false"
+            fi
+          fi
+
+          if [ "$release_server" != "true" ] && [ "$release_server" != "false" ]; then
+            echo "::error::release_server must be true, false, or auto (got $release_server)"
+            exit 1
+          fi
+
+          if [ "$release_server" = "true" ] && [ "$target_ref" != "$DEFAULT_BRANCH" ]; then
+            echo "::error::Server release publishes to global R2 latest and is only allowed for $DEFAULT_BRANCH. Disable release_server for branch-only macOS builds."
+            exit 1
+          fi
+
+          {
+            echo "target_ref=$target_ref"
+            echo "bump_mode=$bump_mode"
+            echo "commit_version=$commit_version"
+            echo "upload_to_r2=$upload_to_r2"
+            echo "release_server=$release_server"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.workflow_inputs.outputs.target_ref }}
+
+      - name: Read server package version
+        id: server_version
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          package_json = Path("packages/browseros-agent/apps/server/package.json")
+          version = json.loads(package_json.read_text())["version"]
+          print(f"server_version={version}")
+          PY
+
   authorize_manual_dispatch:
     if: github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, macOS, ARM64, browseros-builder]
@@ -39,11 +125,27 @@ jobs:
     steps:
       - run: echo "Manual dispatch approved through release-core."
 
-  build:
-    needs: authorize_manual_dispatch
+  release_server:
+    needs: [authorize_manual_dispatch, resolve_inputs]
     if: |
       always() &&
+      needs.resolve_inputs.result == 'success' &&
+      needs.resolve_inputs.outputs.release_server == 'true' &&
       (github.event_name == 'schedule' || needs.authorize_manual_dispatch.result == 'success')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-server.yml
+    with:
+      version: ${{ needs.resolve_inputs.outputs.server_version }}
+    secrets: inherit
+
+  build:
+    needs: [authorize_manual_dispatch, resolve_inputs, release_server]
+    if: |
+      always() &&
+      needs.resolve_inputs.result == 'success' &&
+      (github.event_name == 'schedule' || needs.authorize_manual_dispatch.result == 'success') &&
+      (needs.resolve_inputs.outputs.release_server != 'true' || needs.release_server.result == 'success')
     runs-on: [self-hosted, macOS, ARM64, browseros-builder]
     permissions:
       contents: write
@@ -52,17 +154,14 @@ jobs:
     env:
       BROWSEROS_REPO: ${{ vars.BROWSEROS_REPO_PATH }}
       CHROMIUM_SRC: ${{ vars.BROWSEROS_CHROMIUM_SRC }}
-      NIGHTLY_REF: ${{ vars.BROWSEROS_NIGHTLY_REF }}
     steps:
       - name: Resolve build inputs
         id: build_inputs
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          DISPATCH_BUMP: ${{ inputs.bump }}
-          DISPATCH_COMMIT_VERSION: ${{ inputs.commit_version }}
-          DISPATCH_UPLOAD_TO_R2: ${{ inputs.upload_to_r2 }}
-          DISPATCH_REF: ${{ github.ref_name }}
+          TARGET_REF: ${{ needs.resolve_inputs.outputs.target_ref }}
+          BUMP_MODE: ${{ needs.resolve_inputs.outputs.bump_mode }}
+          COMMIT_VERSION: ${{ needs.resolve_inputs.outputs.commit_version }}
+          UPLOAD_TO_R2: ${{ needs.resolve_inputs.outputs.upload_to_r2 }}
         run: |
           set -euo pipefail
 
@@ -88,25 +187,13 @@ jobs:
             exit 1
           fi
 
-          if [ "$EVENT_NAME" = "schedule" ]; then
-            target_ref="${NIGHTLY_REF:-$DEFAULT_BRANCH}"
-            bump_mode="offset+build"
-            commit_version="true"
-            upload_to_r2="true"
-          else
-            target_ref="$DISPATCH_REF"
-            bump_mode="${DISPATCH_BUMP:-offset+build}"
-            commit_version="${DISPATCH_COMMIT_VERSION:-false}"
-            upload_to_r2="${DISPATCH_UPLOAD_TO_R2:-true}"
-          fi
-
           {
             echo "browseros_repo=$repo"
             echo "chromium_src=$chromium_src"
-            echo "target_ref=$target_ref"
-            echo "bump_mode=$bump_mode"
-            echo "commit_version=$commit_version"
-            echo "upload_to_r2=$upload_to_r2"
+            echo "target_ref=$TARGET_REF"
+            echo "bump_mode=$BUMP_MODE"
+            echo "commit_version=$COMMIT_VERSION"
+            echo "upload_to_r2=$UPLOAD_TO_R2"
           } >> "$GITHUB_OUTPUT"
 
       - name: Sync build repo to target ref

@@ -1,10 +1,16 @@
 name: Release BrowserOS Server
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.0.97)"
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 0.0.80)"
+        description: "Release version (e.g. 0.0.97)"
         required: true
         type: string
 
@@ -13,17 +19,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    if: github.ref == 'refs/heads/main'
+  authorize_manual_dispatch:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: release-core
+    steps:
+      - run: echo "Manual dispatch approved through release-core."
+
+  release:
+    needs: authorize_manual_dispatch
+    if: |
+      always() &&
+      (github.event_name != 'workflow_dispatch' || needs.authorize_manual_dispatch.result == 'success')
+    runs-on: ubuntu-latest
     permissions:
       contents: write
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: packages/browseros-agent
 
     steps:
+      - name: Validate release ref
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+        run: |
+          set -euo pipefail
+          expected_ref="refs/heads/$DEFAULT_BRANCH"
+          if [ "$GITHUB_REF" != "$expected_ref" ]; then
+            echo "::error::Server release is only allowed on $DEFAULT_BRANCH (got $GITHUB_REF)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -52,8 +79,21 @@ jobs:
             exit 1
           fi
 
-      - name: Build release artifacts
-        run: bun run build:server:ci
+      - name: Build and upload release artifacts
+        env:
+          BROWSEROS_CONFIG_URL: ${{ vars.BROWSEROS_CONFIG_URL || 'https://llm.browseros.com/api/browseros-server/config' }}
+          CODEGEN_SERVICE_URL: ${{ secrets.CODEGEN_SERVICE_URL || vars.CODEGEN_SERVICE_URL }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY || vars.POSTHOG_API_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN || vars.SENTRY_DSN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_DOWNLOAD_PREFIX: artifacts/vendor
+          R2_UPLOAD_PREFIX: artifacts/server
+          NODE_ENV: production
+          LOG_LEVEL: info
+        run: bun run build:server
 
       - name: Verify release artifacts
         run: |
