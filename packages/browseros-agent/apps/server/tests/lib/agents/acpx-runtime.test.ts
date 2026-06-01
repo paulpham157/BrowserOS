@@ -1005,8 +1005,7 @@ Use the BrowserOS MCP server for all browser tasks, including browsing the web, 
         `'${bunPath}' x --bun --silent --package '@zed-industries/codex-acp@^0.12.0' 'codex-acp'`,
       )
       expect(codexCommand).toContain('BUN_INSTALL_CACHE_DIR=')
-      expect(codexCommand).toContain('PATH=')
-      expect(codexCommand).toContain('/opt/homebrew/bin')
+      expect(codexCommand).not.toContain('PATH=')
       expect(codexCommand).not.toContain('npx -y')
     },
   )

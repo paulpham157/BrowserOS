@@ -1,4 +1,7 @@
-import type { HarnessAgentAdapter } from '../agent-harness-types'
+import type {
+  HarnessAdapterHealth,
+  HarnessAgentAdapter,
+} from '../agent-harness-types'
 import type { AgentListItem } from '../agents-page-types'
 import type { AgentLiveness } from '../LivenessDot'
 
@@ -11,10 +14,7 @@ export interface AgentTokenUsage {
   cumulative: { input: number; output: number }
 }
 
-export interface AgentAdapterHealth {
-  healthy: boolean
-  reason?: string
-}
+export type AgentAdapterHealth = HarnessAdapterHealth
 
 /**
  * Everything an `AgentRowCard` needs to render. Mirrors the shape

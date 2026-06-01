@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/hover-card'
 import { cn } from '@/lib/utils'
 import { adapterLabel } from '../AdapterIcon'
+import { adapterHealthLabel, adapterHealthTone } from '../adapter-health'
 import type { HarnessAgentAdapter } from '../agent-harness-types'
 import type { AgentAdapterHealth } from './agent-row.types'
 
@@ -33,6 +34,7 @@ export const AgentSummaryChips: FC<AgentSummaryChipsProps> = ({
   if (modelLabel) parts.push(modelLabel)
   if (reasoningEffort) parts.push(reasoningEffort)
   const unhealthy = adapterHealth?.healthy === false
+  const tone = adapterHealth ? adapterHealthTone(adapterHealth) : 'ready'
   return (
     <div
       className={cn(
@@ -49,12 +51,15 @@ export const AgentSummaryChips: FC<AgentSummaryChipsProps> = ({
               className="h-5 cursor-default gap-1 border-amber-500/40 bg-amber-50 px-1.5 text-amber-900 hover:bg-amber-50"
             >
               <TriangleAlert className="size-2.5" />
-              <span className="font-normal">Unavailable</span>
+              <span className="font-normal">
+                {adapterHealthLabel(adapterHealth)}
+              </span>
             </Badge>
           </HoverCardTrigger>
           <HoverCardContent side="right" className="w-72 text-sm">
             <div className="font-medium">
-              {adapterLabel(adapter)} CLI not available
+              {adapterLabel(adapter)}{' '}
+              {tone === 'danger' ? 'needs setup' : 'warning'}
             </div>
             <div className="mt-1 text-muted-foreground text-xs">
               {adapterHealth.reason ??

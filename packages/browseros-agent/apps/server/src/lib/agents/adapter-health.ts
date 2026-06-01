@@ -4,21 +4,19 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import {
+  type AdapterHealth,
+  type DetectHostAdapterOptions,
+  detectHostAdapter,
+} from './adapter-detection'
 import type { AgentAdapter } from './agent-types'
+import { isHostAcpAdapter } from './host-acp-adapter-config'
 import {
   type AgentRuntime,
   type AgentRuntimeRegistry,
   getAgentRuntimeRegistry,
   HostProcessAgentRuntime,
 } from './runtime'
-
-export interface AdapterHealth {
-  healthy: boolean
-  /** Human-readable explanation when unhealthy; absent on success. */
-  reason?: string
-  /** Wall-clock ms when this probe completed. */
-  checkedAt: number
-}
 
 /**
  * Reports adapter readiness for the `/adapters` route. Reads from the
@@ -29,18 +27,38 @@ export interface AdapterHealth {
  */
 export class AdapterHealthChecker {
   private readonly registry: AgentRuntimeRegistry
+  private readonly detectHostAdapter: typeof detectHostAdapter
+  private readonly hostDetectionOptions: DetectHostAdapterOptions
 
-  constructor(options: { registry?: AgentRuntimeRegistry } = {}) {
+  constructor(
+    options: {
+      registry?: AgentRuntimeRegistry
+      detectHostAdapter?: typeof detectHostAdapter
+      hostDetectionOptions?: DetectHostAdapterOptions
+    } = {},
+  ) {
     this.registry = options.registry ?? getAgentRuntimeRegistry()
+    this.detectHostAdapter = options.detectHostAdapter ?? detectHostAdapter
+    this.hostDetectionOptions = options.hostDetectionOptions ?? {}
   }
 
   async getHealth(adapter: AgentAdapter): Promise<AdapterHealth> {
+    if (isHostAcpAdapter(adapter)) {
+      return this.detectHostAdapter(adapter, this.hostDetectionOptions)
+    }
+
     const runtime = this.registry.get(adapter)
     if (!runtime) {
       return {
         healthy: false,
         reason: `No runtime registered for "${adapter}"`,
         checkedAt: Date.now(),
+        readiness: 'needs-install',
+        installState: 'not-installed',
+        nativeCliState: 'unknown',
+        authState: 'unknown',
+        adapterLaunchSource: 'none',
+        packageCacheState: 'unknown',
       }
     }
     if (runtime instanceof HostProcessAgentRuntime) await runtime.probeHealth()
@@ -57,5 +75,11 @@ function runtimeSnapshotToHealth(runtime: AgentRuntime): AdapterHealth {
     // regardless of health state. lastErrorAt is the fallback for
     // runtimes that don't emit probedAt yet (containers).
     checkedAt: snap.probedAt ?? snap.lastErrorAt ?? Date.now(),
+    readiness: snap.isReady ? 'ready' : 'unknown',
+    installState: snap.isReady ? 'installed' : 'not-installed',
+    nativeCliState: 'unknown',
+    authState: snap.isReady ? 'not-applicable' : 'unknown',
+    adapterLaunchSource: snap.isReady ? 'runtime' : 'none',
+    packageCacheState: 'unknown',
   }
 }

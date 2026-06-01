@@ -271,10 +271,7 @@ export const AgentCommandConversation: FC<AgentCommandConversationProps> = ({
     if (!adapterId) return null
     const descriptor = adapters.find((item) => item.id === adapterId)
     if (!descriptor?.health) return null
-    return {
-      healthy: descriptor.health.healthy,
-      reason: descriptor.health.reason,
-    }
+    return descriptor.health
   }, [adapters, harnessAgent?.adapter])
 
   if (shouldRedirectHome) {

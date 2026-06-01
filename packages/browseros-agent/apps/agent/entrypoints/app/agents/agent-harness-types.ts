@@ -99,6 +99,23 @@ export interface HarnessAdapterHealth {
   healthy: boolean
   reason?: string
   checkedAt: number
+  readiness?:
+    | 'ready'
+    | 'needs-auth'
+    | 'needs-install'
+    | 'will-fetch-package'
+    | 'diagnostic-warning'
+    | 'unknown'
+  installState?:
+    | 'installed'
+    | 'npx-available'
+    | 'package-runner-available'
+    | 'not-installed'
+  nativeCliState?: 'present' | 'missing' | 'unknown'
+  authState?: 'authenticated' | 'unauthenticated' | 'not-applicable' | 'unknown'
+  version?: string
+  adapterLaunchSource?: 'bundled-bun' | 'host-npx' | 'runtime' | 'none'
+  packageCacheState?: 'cached' | 'fetch-required' | 'unknown'
 }
 
 export interface HarnessAdapterDescriptor {

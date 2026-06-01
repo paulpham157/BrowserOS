@@ -32,7 +32,8 @@ import type {
   AgentHistoryEntry,
   AgentHistoryToolCall,
 } from './agent-types'
-import { buildMacosAcpAdapterPath, resolveBundledBun } from './bundled-bun'
+import { resolveBundledBun } from './bundled-bun'
+import { HOST_ACP_ADAPTER_CONFIG } from './host-acp-adapter-config'
 import { getHermesRuntime } from './runtime'
 import type {
   AgentHistoryPage,
@@ -43,14 +44,6 @@ import type {
   AgentStatus,
   AgentStreamEvent,
 } from './types'
-
-const CLAUDE_ACP_ADAPTER_COMMAND =
-  'npx -y @agentclientprotocol/claude-agent-acp@^0.31.0'
-const CODEX_ACP_ADAPTER_COMMAND = 'npx -y @zed-industries/codex-acp@^0.12.0'
-const CLAUDE_ACP_PACKAGE = '@agentclientprotocol/claude-agent-acp@^0.31.0'
-const CLAUDE_ACP_BIN = 'claude-agent-acp'
-const CODEX_ACP_PACKAGE = '@zed-industries/codex-acp@^0.12.0'
-const CODEX_ACP_BIN = 'codex-acp'
 
 type AcpxRuntimeOptions = {
   cwd?: string
@@ -687,8 +680,8 @@ function createBrowserosAgentRegistry(input: {
         })
         return wrapCommandWithEnv(
           launch.command,
-          launch.addMacosAdapterEnv
-            ? withMacosAcpAdapterEnv(input.commandEnv, input.browserosDir)
+          launch.addBundledBunAdapterEnv
+            ? withBundledBunAcpAdapterEnv(input.commandEnv, input.browserosDir)
             : input.commandEnv,
         )
       }
@@ -707,39 +700,31 @@ function createBrowserosAgentRegistry(input: {
 function resolveBrowserosHostAcpAdapterCommand(input: {
   adapter: 'claude' | 'codex'
   resourcesDir: string | null
-}): { command: string; addMacosAdapterEnv: boolean } {
+}): { command: string; addBundledBunAdapterEnv: boolean } {
   const bun = resolveBundledBun({ resourcesDir: input.resourcesDir })
   if (bun) {
-    const pkg =
-      input.adapter === 'claude' ? CLAUDE_ACP_PACKAGE : CODEX_ACP_PACKAGE
-    const bin = input.adapter === 'claude' ? CLAUDE_ACP_BIN : CODEX_ACP_BIN
+    const config = HOST_ACP_ADAPTER_CONFIG[input.adapter]
     return {
-      command: `${shellQuote(bun)} x --bun --silent --package ${shellQuote(pkg)} ${shellQuote(bin)}`,
-      addMacosAdapterEnv: true,
+      command: `${shellQuote(bun)} x --bun --silent --package ${shellQuote(config.acpPackageSpec)} ${shellQuote(config.acpBin)}`,
+      addBundledBunAdapterEnv: true,
     }
   }
 
+  const config = HOST_ACP_ADAPTER_CONFIG[input.adapter]
   return {
-    command:
-      input.adapter === 'claude'
-        ? CLAUDE_ACP_ADAPTER_COMMAND
-        : CODEX_ACP_ADAPTER_COMMAND,
-    addMacosAdapterEnv: false,
+    command: config.acpCommand,
+    addBundledBunAdapterEnv: false,
   }
 }
 
-/** Adds the minimum macOS env needed for bundled Bun and native CLI lookup. */
-function withMacosAcpAdapterEnv(
+/** Adds the minimum env needed for BrowserOS-managed bundled Bun package installs. */
+function withBundledBunAcpAdapterEnv(
   env: Record<string, string>,
   browserosDir: string,
 ): Record<string, string> {
   return {
     ...env,
     BUN_INSTALL_CACHE_DIR: join(browserosDir, 'cache', 'bun-install'),
-    PATH: buildMacosAcpAdapterPath({
-      basePath: env.PATH ?? process.env.PATH,
-      home: env.HOME ?? process.env.HOME,
-    }),
   }
 }
 

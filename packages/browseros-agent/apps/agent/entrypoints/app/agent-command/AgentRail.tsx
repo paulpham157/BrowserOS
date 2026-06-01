@@ -35,10 +35,7 @@ export const AgentRail: FC<AgentRailProps> = ({
     const map = new Map<HarnessAgentAdapter, AgentAdapterHealth>()
     for (const adapter of adapters) {
       if (adapter.health) {
-        map.set(adapter.id, {
-          healthy: adapter.health.healthy,
-          reason: adapter.health.reason,
-        })
+        map.set(adapter.id, adapter.health)
       }
     }
     return map

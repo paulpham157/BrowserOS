@@ -101,7 +101,7 @@ type AgentRouteDeps = {
   /** Optional hook for harness-owned VM/container runtimes. */
   ensureVmRuntimeReady?: EnsureVmRuntimeReady
   /** Optional override; defaults to a fresh in-memory checker. */
-  adapterHealth?: AdapterHealthChecker
+  adapterHealth?: Pick<AdapterHealthChecker, 'getHealth'>
   onTurnLifecycle?: import('../services/agents/agent-harness-service').TurnLifecycleListener
 }
 
@@ -128,7 +128,11 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
   }
   // One checker per route mount. Cached probes refresh every 5min;
   // tests can swap in an alternate via deps if needed.
-  const adapterHealth = deps.adapterHealth ?? new AdapterHealthChecker()
+  const adapterHealth =
+    deps.adapterHealth ??
+    new AdapterHealthChecker({
+      hostDetectionOptions: { resourcesDir: deps.resourcesDir },
+    })
 
   return new Hono<Env>()
     .get('/adapters', async (c) => {

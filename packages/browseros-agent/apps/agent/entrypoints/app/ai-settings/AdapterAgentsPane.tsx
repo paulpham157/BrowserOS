@@ -3,7 +3,13 @@ import { type FC, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { AdapterIcon, adapterLabel } from '@/entrypoints/app/agents/AdapterIcon'
 import { AgentList } from '@/entrypoints/app/agents/AgentList'
+import {
+  adapterHealthLabel,
+  adapterHealthMeta,
+  adapterHealthTone,
+} from '@/entrypoints/app/agents/adapter-health'
 import type {
+  HarnessAdapterHealth,
   HarnessAgent,
   HarnessAgentAdapter,
 } from '@/entrypoints/app/agents/agent-harness-types'
@@ -151,6 +157,9 @@ export const AdapterAgentsPane: FC<AdapterAgentsPaneProps> = ({
                 ? `Default model ${adapter.defaultModelId} · ${adapter.defaultReasoningEffort} reasoning`
                 : 'Runtime details load from the agent server.'}
             </p>
+            {adapter?.health ? (
+              <AdapterHealthMeta health={adapter.health} />
+            ) : null}
           </div>
           <Button
             onClick={() => setCreateOpen(true)}
@@ -227,26 +236,37 @@ export const AdapterAgentsPane: FC<AdapterAgentsPaneProps> = ({
 function AdapterHealthBadge({
   health,
 }: {
-  health: { healthy: boolean; reason?: string } | undefined
+  health: HarnessAdapterHealth | undefined
 }) {
   if (!health) return null
+  const tone = adapterHealthTone(health)
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium text-xs',
-        health.healthy
-          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+        tone === 'ready' &&
+          'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        tone === 'warning' &&
+          'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+        tone === 'danger' && 'bg-red-500/10 text-red-600 dark:text-red-400',
       )}
       title={health.reason}
     >
       <span
         className={cn(
           'size-1.5 rounded-full',
-          health.healthy ? 'bg-emerald-500' : 'bg-amber-500',
+          tone === 'ready' && 'bg-emerald-500',
+          tone === 'warning' && 'bg-amber-500',
+          tone === 'danger' && 'bg-red-500',
         )}
       />
-      {health.healthy ? 'Ready' : 'Unavailable'}
+      {adapterHealthLabel(health)}
     </span>
   )
+}
+
+function AdapterHealthMeta({ health }: { health: HarnessAdapterHealth }) {
+  const meta = adapterHealthMeta(health)
+  if (!meta) return null
+  return <p className="mt-1 text-muted-foreground text-xs">{meta}</p>
 }

@@ -15,6 +15,64 @@ import type { AgentDefinition } from '../../../src/lib/agents/agent-types'
 import type { AgentStreamEvent } from '../../../src/lib/agents/types'
 
 describe('createAgentRoutes', () => {
+  it('returns enriched adapter health from /adapters', async () => {
+    const route = new Hono().route(
+      '/agents',
+      createAgentRoutes({
+        service: createFakeService([]),
+        adapterHealth: {
+          async getHealth(adapter) {
+            return {
+              healthy: adapter === 'claude',
+              checkedAt: 1234,
+              readiness: adapter === 'claude' ? 'ready' : 'needs-auth',
+              installState: 'installed',
+              nativeCliState: 'present',
+              authState:
+                adapter === 'claude' ? 'authenticated' : 'unauthenticated',
+              version: adapter === 'claude' ? 'claude 1.2.3' : undefined,
+              adapterLaunchSource: 'host-npx',
+              packageCacheState: 'cached',
+              ...(adapter === 'claude'
+                ? {}
+                : { reason: 'Codex is installed but is not authenticated.' }),
+            }
+          },
+        },
+      }),
+    )
+
+    const response = await route.request('/agents/adapters')
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.adapters).toContainEqual(
+      expect.objectContaining({
+        id: 'claude',
+        health: expect.objectContaining({
+          healthy: true,
+          readiness: 'ready',
+          installState: 'installed',
+          nativeCliState: 'present',
+          authState: 'authenticated',
+          version: 'claude 1.2.3',
+          adapterLaunchSource: 'host-npx',
+          packageCacheState: 'cached',
+          checkedAt: 1234,
+        }),
+      }),
+    )
+    expect(body.adapters).toContainEqual(
+      expect.objectContaining({
+        id: 'codex',
+        health: expect.objectContaining({
+          healthy: false,
+          readiness: 'needs-auth',
+          reason: 'Codex is installed but is not authenticated.',
+        }),
+      }),
+    )
+  })
+
   it('creates and lists harness agents', async () => {
     const agents: AgentDefinition[] = []
     const route = createMountedRoutes(agents)

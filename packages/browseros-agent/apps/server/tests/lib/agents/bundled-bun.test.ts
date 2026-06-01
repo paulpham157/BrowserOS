@@ -7,10 +7,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import {
-  buildMacosAcpAdapterPath,
-  resolveBundledBun,
-} from '../../../src/lib/agents/bundled-bun'
+import { resolveBundledBun } from '../../../src/lib/agents/bundled-bun'
 
 describe('bundled Bun helpers', () => {
   const tempDirs: string[] = []
@@ -54,16 +51,5 @@ describe('bundled Bun helpers', () => {
     await writeFile(bunPath, '#!/bin/sh\n')
 
     expect(resolveBundledBun({ resourcesDir, platform: 'linux' })).toBeNull()
-  })
-
-  it('adds common macOS CLI install directories without duplicating PATH entries', () => {
-    expect(
-      buildMacosAcpAdapterPath({
-        basePath: '/usr/bin:/bin:/opt/homebrew/bin',
-        home: '/Users/dev',
-      }),
-    ).toBe(
-      '/Users/dev/.local/bin:/Users/dev/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
-    )
   })
 })
