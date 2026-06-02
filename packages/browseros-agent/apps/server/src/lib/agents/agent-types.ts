@@ -8,6 +8,9 @@ export type AgentAdapter = 'claude' | 'codex' | 'hermes'
 
 export type AgentPermissionMode = 'approve-all'
 
+export const MAIN_AGENT_SESSION_ID = 'main'
+export type AgentSessionId = string
+
 export interface AgentDefinition {
   id: string
   name: string
@@ -58,7 +61,7 @@ export interface AgentHistoryToolCall {
 export interface AgentHistoryEntry {
   id: string
   agentId: string
-  sessionId: 'main'
+  sessionId: AgentSessionId
   role: 'user' | 'assistant'
   text: string
   createdAt: number

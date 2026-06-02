@@ -219,21 +219,38 @@ export function useDeleteHarnessAgent() {
   })
 }
 
+function buildSessionChatPath(
+  baseUrl: string,
+  agentId: string,
+  sessionId: string,
+): string {
+  const encodedAgent = encodeURIComponent(agentId)
+  if (sessionId === 'main') return `${baseUrl}/agents/${encodedAgent}/chat`
+  return `${baseUrl}/agents/${encodedAgent}/sessions/${encodeURIComponent(sessionId)}/chat`
+}
+
 export async function chatWithHarnessAgent(
   agentId: string,
   message: string,
-  signal?: AbortSignal,
-  attachments?: ReadonlyArray<unknown>,
+  options: {
+    sessionId?: string
+    signal?: AbortSignal
+    attachments?: ReadonlyArray<unknown>
+  } = {},
 ): Promise<Response> {
   const baseUrl = await getAgentServerUrl()
-  return fetch(`${baseUrl}/agents/${encodeURIComponent(agentId)}/chat`, {
+  const sessionId = options.sessionId ?? 'main'
+  const path = buildSessionChatPath(baseUrl, agentId, sessionId)
+  return fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message,
-      ...(attachments && attachments.length > 0 ? { attachments } : {}),
+      ...(options.attachments && options.attachments.length > 0
+        ? { attachments: options.attachments }
+        : {}),
     }),
-    signal,
+    signal: options.signal,
   })
 }
 
@@ -245,11 +262,17 @@ export async function chatWithHarnessAgent(
  */
 export async function attachToHarnessTurn(
   agentId: string,
-  options: { turnId?: string; lastSeq?: number; signal?: AbortSignal } = {},
+  options: {
+    sessionId?: string
+    turnId?: string
+    lastSeq?: number
+    signal?: AbortSignal
+  } = {},
 ): Promise<Response> {
   const baseUrl = await getAgentServerUrl()
+  const sessionId = options.sessionId ?? 'main'
   const url = new URL(
-    `${baseUrl}/agents/${encodeURIComponent(agentId)}/chat/stream`,
+    `${buildSessionChatPath(baseUrl, agentId, sessionId)}/stream`,
   )
   if (options.turnId) url.searchParams.set('turnId', options.turnId)
   const headers: Record<string, string> = {}
@@ -262,7 +285,7 @@ export async function attachToHarnessTurn(
 export interface HarnessActiveTurnInfo {
   turnId: string
   agentId: string
-  sessionId: 'main'
+  sessionId: string
   status: 'running' | 'done' | 'error' | 'cancelled'
   lastSeq: number
   startedAt: number
@@ -277,10 +300,11 @@ export interface HarnessActiveTurnInfo {
  */
 export async function fetchActiveHarnessTurn(
   agentId: string,
+  sessionId = 'main',
 ): Promise<HarnessActiveTurnInfo | null> {
   const baseUrl = await getAgentServerUrl()
   const response = await fetch(
-    `${baseUrl}/agents/${encodeURIComponent(agentId)}/chat/active`,
+    `${buildSessionChatPath(baseUrl, agentId, sessionId)}/active`,
   )
   if (!response.ok) return null
   const body = (await response.json()) as {
@@ -296,11 +320,11 @@ export async function fetchActiveHarnessTurn(
  */
 export async function cancelHarnessTurn(
   agentId: string,
-  options: { turnId?: string; reason?: string } = {},
+  options: { sessionId?: string; turnId?: string; reason?: string } = {},
 ): Promise<{ cancelled: boolean }> {
   const baseUrl = await getAgentServerUrl()
   const response = await fetch(
-    `${baseUrl}/agents/${encodeURIComponent(agentId)}/chat/cancel`,
+    `${buildSessionChatPath(baseUrl, agentId, options.sessionId ?? 'main')}/cancel`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -316,15 +340,17 @@ export async function cancelHarnessTurn(
 
 export async function fetchHarnessAgentHistory(
   agentId: string,
+  sessionId = 'main',
 ): Promise<HarnessAgentHistoryPage> {
   const baseUrl = await getAgentServerUrl()
   return agentsFetch<HarnessAgentHistoryPage>(
     baseUrl,
-    `/${encodeURIComponent(agentId)}/sessions/main/history`,
+    `/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/history`,
   )
 }
 
 export interface EnqueueMessageInput {
+  sessionId?: string
   message: string
   attachments?: ReadonlyArray<unknown>
 }
@@ -334,19 +360,22 @@ export async function enqueueHarnessMessage(
   input: EnqueueMessageInput,
 ): Promise<HarnessQueuedMessage> {
   const baseUrl = await getAgentServerUrl()
-  const response = await fetch(
-    `${baseUrl}/agents/${encodeURIComponent(agentId)}/queue`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: input.message,
-        ...(input.attachments && input.attachments.length > 0
-          ? { attachments: input.attachments }
-          : {}),
-      }),
-    },
-  )
+  const sessionId = input.sessionId ?? 'main'
+  const path =
+    sessionId === 'main'
+      ? `${baseUrl}/agents/${encodeURIComponent(agentId)}/queue`
+      : `${baseUrl}/agents/${encodeURIComponent(agentId)}/sessions/${encodeURIComponent(sessionId)}/queue`
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: input.sessionId,
+      message: input.message,
+      ...(input.attachments && input.attachments.length > 0
+        ? { attachments: input.attachments }
+        : {}),
+    }),
+  })
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`
     try {
@@ -394,6 +423,7 @@ export function useEnqueueHarnessMessage() {
       const optimistic: HarnessQueuedMessage = {
         id: `optimistic-${Math.random().toString(36).slice(2, 10)}`,
         createdAt: Date.now(),
+        sessionId: input.sessionId,
         message: input.message,
       }
       queryClient.setQueryData<HarnessAgentsResponse>(queryKey, {

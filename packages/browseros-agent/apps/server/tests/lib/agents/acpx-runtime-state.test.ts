@@ -77,4 +77,56 @@ describe('acpx runtime state', () => {
       deriveRuntimeSessionKey({ ...base, skillIdentity: 'skills-v2' }),
     ).not.toBe(first)
   })
+
+  it('derives stable session keys for UUID sessions', () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const base = {
+      agentId: 'agent-1',
+      sessionId,
+      adapter: 'codex',
+      cwd: '/tmp/work',
+      agentHome: '/tmp/agent-home',
+      promptVersion: 'v1',
+      skillIdentity: 'skills-v1',
+      commandIdentity: 'codex-home-v1',
+    }
+
+    const first = deriveRuntimeSessionKey(base)
+
+    expect(first).toMatch(
+      /^agent:agent-1:00000000-0000-4000-8000-000000000001:[a-f0-9]{16}$/,
+    )
+    expect(deriveRuntimeSessionKey(base)).toBe(first)
+    expect(deriveRuntimeSessionKey({ ...base, sessionId: 'main' })).not.toBe(
+      first,
+    )
+  })
+
+  it('saves and loads latest runtime state for a UUID session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'browseros-runtime-state-'))
+    tempDirs.push(dir)
+    const filePath = join(
+      dir,
+      'agent-1',
+      '00000000-0000-4000-8000-000000000001.json',
+    )
+
+    await saveLatestRuntimeState(filePath, {
+      sessionId: '00000000-0000-4000-8000-000000000001',
+      runtimeSessionKey:
+        'agent:agent-1:00000000-0000-4000-8000-000000000001:abc',
+      cwd: '/tmp/work',
+      agentHome: '/tmp/agent-home',
+      updatedAt: 1234,
+    })
+
+    expect(await loadLatestRuntimeState(filePath)).toEqual({
+      sessionId: '00000000-0000-4000-8000-000000000001',
+      runtimeSessionKey:
+        'agent:agent-1:00000000-0000-4000-8000-000000000001:abc',
+      cwd: '/tmp/work',
+      agentHome: '/tmp/agent-home',
+      updatedAt: 1234,
+    })
+  })
 })

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { AgentDefinition } from '../agent-types'
+import type { AgentDefinition, AgentSessionId } from '../agent-types'
 import {
   prepareClaudeCodeContext,
   prepareCodexContext,
@@ -31,7 +31,7 @@ export interface PreparedAcpxAgentContext {
 export interface PrepareAcpxAgentContextInput {
   browserosDir: string
   agent: AgentDefinition
-  sessionId: 'main'
+  sessionId: AgentSessionId
   sessionKey: string
   cwdOverride: string | null
   isSelectedCwd: boolean

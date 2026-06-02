@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Plus } from 'lucide-react'
 import { type FC, useEffect, useMemo, useRef } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -34,11 +34,13 @@ import { useHarnessChatHistory } from './useHarnessChatHistory'
 
 function AgentConversationController({
   agentId,
+  sessionId,
   initialMessage,
   onInitialMessageConsumed,
   agents,
 }: {
   agentId: string
+  sessionId: string
   initialMessage: string | null
   onInitialMessageConsumed: () => void
   agents: AgentEntry[]
@@ -47,7 +49,11 @@ function AgentConversationController({
   const onInitialMessageConsumedRef = useRef(onInitialMessageConsumed)
   const agent = agents.find((entry) => entry.agentId === agentId)
   const agentName = agent?.name || agentId || 'Agent'
-  const harnessHistoryQuery = useHarnessChatHistory(agentId, Boolean(agent))
+  const harnessHistoryQuery = useHarnessChatHistory(
+    agentId,
+    sessionId,
+    Boolean(agent),
+  )
 
   const historyMessages = useMemo(
     () =>
@@ -66,11 +72,14 @@ function AgentConversationController({
   // keeps cross-tab queue state in sync without a second poll.
   const { harnessAgents } = useHarnessAgents()
   const harnessAgent = harnessAgents.find((entry) => entry.id === agentId)
-  const queue = harnessAgent?.queue ?? []
+  const queue = (harnessAgent?.queue ?? []).filter(
+    (entry) => (entry.sessionId ?? 'main') === sessionId,
+  )
   const activeTurnId = harnessAgent?.activeTurnId ?? null
 
   const { turns, streaming, send } = useAgentConversation(agentId, {
     runtime: 'agent-harness',
+    sessionId,
     sessionKey: null,
     history: chatHistory,
     activeTurnId,
@@ -84,6 +93,7 @@ function AgentConversationController({
 
   const handleStop = () => {
     void cancelHarnessTurn(agentId, {
+      sessionId,
       turnId: activeTurnId ?? undefined,
       reason: 'user pressed stop',
     })
@@ -98,7 +108,7 @@ function AgentConversationController({
   const historyReady =
     harnessHistoryQuery.isFetched || harnessHistoryQuery.isError
   const initialMessageKey = initialMessage
-    ? `${agentId}:${initialMessage}`
+    ? `${agentId}:${sessionId}:${initialMessage}`
     : null
   const error = harnessHistoryQuery.error ?? null
 
@@ -113,7 +123,7 @@ function AgentConversationController({
     // present and is the text-only fallback path; the registry wins
     // when both exist because it carries the binary attachments
     // alongside the text.
-    const pending = consumePendingInitialMessage(agentId)
+    const pending = consumePendingInitialMessage(agentId, sessionId)
     if (pending) {
       // Mark the dedup ref so the text-only branch below doesn't
       // re-fire on the same render.
@@ -151,7 +161,14 @@ function AgentConversationController({
     initialMessageSentRef.current = initialMessageKey
     onInitialMessageConsumedRef.current()
     void sendRef.current({ text: query })
-  }, [agentId, disabled, historyReady, initialMessage, initialMessageKey])
+  }, [
+    agentId,
+    disabled,
+    historyReady,
+    initialMessage,
+    initialMessageKey,
+    sessionId,
+  ])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -198,6 +215,7 @@ function AgentConversationController({
               if (streaming || activeTurnId) {
                 enqueueMessage.mutate({
                   agentId,
+                  sessionId,
                   message: input.text,
                   attachments,
                 })
@@ -246,16 +264,20 @@ export const AgentCommandConversation: FC<AgentCommandConversationProps> = ({
   backPath = '/home',
   agentPathPrefix = '/home/agents',
 }) => {
-  const { agentId } = useParams<{ agentId: string }>()
+  const { agentId, sessionId } = useParams<{
+    agentId: string
+    sessionId?: string
+  }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { agents } = useAgentCommandData()
-  const { harnessAgents } = useHarnessAgents()
+  const { harnessAgents, loading: harnessAgentsLoading } = useHarnessAgents()
   const { adapters } = useAgentAdapters()
   const updateAgent = useUpdateHarnessAgent()
 
   const shouldRedirectHome = !agentId
   const resolvedAgentId = agentId ?? ''
+  const resolvedSessionId = sessionId ?? ''
   const harnessAgent = harnessAgents.find(
     (entry) => entry.id === resolvedAgentId,
   )
@@ -278,8 +300,27 @@ export const AgentCommandConversation: FC<AgentCommandConversationProps> = ({
     return <Navigate to="/home" replace />
   }
 
+  if (!resolvedSessionId) {
+    if (harnessAgentsLoading) return null
+    const targetSessionId = harnessAgent?.latestSessionId ?? crypto.randomUUID()
+    const query = initialMessage
+      ? `?q=${encodeURIComponent(initialMessage)}`
+      : ''
+    return (
+      <Navigate
+        to={`${agentPathPrefix}/${resolvedAgentId}/sessions/${targetSessionId}${query}`}
+        replace
+      />
+    )
+  }
+
+  const openAgentSession = (target: HarnessAgent) => {
+    const targetSessionId = target.latestSessionId ?? crypto.randomUUID()
+    navigate(`${agentPathPrefix}/${target.id}/sessions/${targetSessionId}`)
+  }
+
   const handleSelectHarnessAgent = (target: HarnessAgent) => {
-    navigate(`${agentPathPrefix}/${target.id}`)
+    openAgentSession(target)
   }
 
   const handlePinToggle = (target: HarnessAgent | null, next: boolean) => {
@@ -322,6 +363,21 @@ export const AgentCommandConversation: FC<AgentCommandConversationProps> = ({
               onPinToggle={(next) =>
                 handlePinToggle(harnessAgent ?? null, next)
               }
+              headerExtra={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    navigate(
+                      `${agentPathPrefix}/${resolvedAgentId}/sessions/${crypto.randomUUID()}`,
+                    )
+                  }
+                  className="size-8 rounded-xl"
+                  title="New conversation"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              }
             />
           </div>
         </div>
@@ -343,8 +399,9 @@ export const AgentCommandConversation: FC<AgentCommandConversationProps> = ({
 
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <AgentConversationController
-              key={resolvedAgentId}
+              key={`${resolvedAgentId}:${resolvedSessionId}`}
               agentId={resolvedAgentId}
+              sessionId={resolvedSessionId}
               agents={agents}
               initialMessage={initialMessage}
               onInitialMessageConsumed={() => {

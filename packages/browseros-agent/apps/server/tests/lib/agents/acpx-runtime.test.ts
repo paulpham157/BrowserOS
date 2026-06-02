@@ -20,6 +20,8 @@ import {
   AcpxRuntime,
   unwrapBrowserosAcpUserMessage,
 } from '../../../src/lib/agents/acpx/runtime'
+import { resolveAgentRuntimePaths } from '../../../src/lib/agents/acpx/runtime-context'
+import { saveLatestRuntimeState } from '../../../src/lib/agents/acpx/runtime-state'
 import type { AgentDefinition } from '../../../src/lib/agents/agent-types'
 import {
   getAgentRuntimeRegistry,
@@ -266,6 +268,154 @@ describe('AcpxRuntime', () => {
     })
 
     expect(history.items.at(0)?.text).toBe('hello from latest')
+  })
+
+  it('loads main history from the main session even after another session is latest', async () => {
+    const browserosDir = await mkdtemp(
+      join(tmpdir(), 'browseros-acpx-browseros-'),
+    )
+    const stateDir = await mkdtemp(join(tmpdir(), 'browseros-acpx-state-'))
+    tempDirs.push(browserosDir, stateDir)
+    const sessionStore = createRuntimeStore({ stateDir })
+    const agent = makeAgent({ id: 'agent-1', adapter: 'codex' })
+    const sidepanelSession = '00000000-0000-4000-8000-000000000001'
+    const mainRuntimeSessionKey = 'agent:agent-1:main:abc123abc123abcd'
+    const sidepanelRuntimeSessionKey = `agent:agent-1:${sidepanelSession}:def456def456def0`
+    await createLatestRuntimeStateForTest({
+      browserosDir,
+      agentId: agent.id,
+      sessionId: 'main',
+      runtimeSessionKey: mainRuntimeSessionKey,
+      updateAgentLatest: false,
+    })
+    await createLatestRuntimeStateForTest({
+      browserosDir,
+      agentId: agent.id,
+      sessionId: sidepanelSession,
+      runtimeSessionKey: sidepanelRuntimeSessionKey,
+      updateAgentLatest: true,
+    })
+    await sessionStore.save(
+      makeSessionRecord({
+        key: mainRuntimeSessionKey,
+        cwd: join(browserosDir, 'agents', 'harness', 'workspace'),
+        userText: 'main conversation',
+      }),
+    )
+    await sessionStore.save(
+      makeSessionRecord({
+        key: sidepanelRuntimeSessionKey,
+        cwd: join(browserosDir, 'agents', 'harness', 'workspace'),
+        userText: 'sidepanel conversation',
+      }),
+    )
+
+    const history = await new AcpxRuntime({
+      browserosDir,
+      stateDir,
+    }).getHistory({
+      agent,
+      sessionId: 'main',
+    })
+
+    expect(history.items.at(0)?.text).toBe('main conversation')
+  })
+
+  it('loads history for a UUID session from that session state', async () => {
+    const browserosDir = await mkdtemp(
+      join(tmpdir(), 'browseros-acpx-browseros-'),
+    )
+    const stateDir = await mkdtemp(join(tmpdir(), 'browseros-acpx-state-'))
+    tempDirs.push(browserosDir, stateDir)
+    const sessionStore = createRuntimeStore({ stateDir })
+    const agent = makeAgent({ id: 'agent-1', adapter: 'codex' })
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const runtimeSessionKey = `agent:agent-1:${sessionId}:abc123abc123abcd`
+    await createLatestRuntimeStateForTest({
+      browserosDir,
+      agentId: agent.id,
+      sessionId,
+      runtimeSessionKey,
+    })
+    await sessionStore.save(
+      makeSessionRecord({
+        key: runtimeSessionKey,
+        cwd: join(browserosDir, 'agents', 'harness', 'workspace'),
+        userText: 'uuid conversation',
+      }),
+    )
+
+    const history = await new AcpxRuntime({
+      browserosDir,
+      stateDir,
+    }).getHistory({
+      agent,
+      sessionId,
+    })
+
+    expect(history.sessionId).toBe(sessionId)
+    expect(history.items.at(0)?.sessionId).toBe(sessionId)
+    expect(history.items.at(0)?.text).toBe('uuid conversation')
+  })
+
+  it('reads row snapshots from the requested session only', async () => {
+    const browserosDir = await mkdtemp(
+      join(tmpdir(), 'browseros-acpx-browseros-'),
+    )
+    const stateDir = await mkdtemp(join(tmpdir(), 'browseros-acpx-state-'))
+    tempDirs.push(browserosDir, stateDir)
+    const sessionStore = createRuntimeStore({ stateDir })
+    const agent = makeAgent({ id: 'agent-1', adapter: 'codex' })
+    const sidepanelSession = '00000000-0000-4000-8000-000000000001'
+    const mainRuntimeSessionKey = 'agent:agent-1:main:abc123abc123abcd'
+    const sidepanelRuntimeSessionKey = `agent:agent-1:${sidepanelSession}:def456def456def0`
+    await createLatestRuntimeStateForTest({
+      browserosDir,
+      agentId: agent.id,
+      sessionId: 'main',
+      runtimeSessionKey: mainRuntimeSessionKey,
+      updateAgentLatest: false,
+    })
+    await createLatestRuntimeStateForTest({
+      browserosDir,
+      agentId: agent.id,
+      sessionId: sidepanelSession,
+      runtimeSessionKey: sidepanelRuntimeSessionKey,
+      updateAgentLatest: true,
+    })
+    await sessionStore.save(
+      makeSessionRecord({
+        key: mainRuntimeSessionKey,
+        cwd: join(browserosDir, 'agents', 'harness', 'workspace'),
+        userText: 'main message',
+      }),
+    )
+    await sessionStore.save(
+      makeSessionRecord({
+        key: sidepanelRuntimeSessionKey,
+        cwd: join(browserosDir, 'agents', 'harness', 'workspace'),
+        userText: 'latest sidepanel message',
+      }),
+    )
+
+    const snapshot = await new AcpxRuntime({
+      browserosDir,
+      stateDir,
+    }).getRowSnapshot({
+      agent,
+      sessionId: 'main',
+    })
+
+    expect(snapshot?.lastUserMessage).toBe('main message')
+    expect(snapshot?.sessionId).toBe('main')
+
+    const latestSnapshot = await new AcpxRuntime({
+      browserosDir,
+      stateDir,
+    }).getLatestRowSnapshot(agent)
+
+    expect(latestSnapshot?.sessionId).toBe(sidepanelSession)
+    expect(latestSnapshot?.lastUserMessage).toBe('latest sidepanel message')
   })
 
   it('maps persisted acpx session records into rich history entries', async () => {
@@ -1360,33 +1510,32 @@ function makeAgent(input: {
 async function createLatestRuntimeStateForTest(input: {
   browserosDir: string
   agentId: string
+  sessionId?: string
   runtimeSessionKey: string
+  updateAgentLatest?: boolean
 }) {
-  const { saveLatestRuntimeState } = await import(
-    '../../../src/lib/agents/acpx/runtime-state'
-  )
-  await saveLatestRuntimeState(
-    join(
+  const paths = resolveAgentRuntimePaths({
+    browserosDir: input.browserosDir,
+    agentId: input.agentId,
+    sessionId: input.sessionId ?? 'main',
+  })
+  const latest = {
+    sessionId: input.sessionId ?? 'main',
+    runtimeSessionKey: input.runtimeSessionKey,
+    cwd: join(input.browserosDir, 'agents', 'harness', 'workspace'),
+    agentHome: join(
       input.browserosDir,
       'agents',
       'harness',
-      'runtime-state',
-      `${input.agentId}.json`,
+      input.agentId,
+      'home',
     ),
-    {
-      sessionId: 'main',
-      runtimeSessionKey: input.runtimeSessionKey,
-      cwd: join(input.browserosDir, 'agents', 'harness', 'workspace'),
-      agentHome: join(
-        input.browserosDir,
-        'agents',
-        'harness',
-        input.agentId,
-        'home',
-      ),
-      updatedAt: 1234,
-    },
-  )
+    updatedAt: 1234,
+  }
+  await saveLatestRuntimeState(paths.runtimeSessionStatePath, latest)
+  if (input.updateAgentLatest ?? true) {
+    await saveLatestRuntimeState(paths.runtimeStatePath, latest)
+  }
 }
 
 async function writeFakeBundledBun(resourcesDir: string): Promise<string> {

@@ -29,6 +29,7 @@ export interface SendInput {
 
 interface UseAgentConversationOptions {
   runtime?: 'agent-harness'
+  sessionId?: string
   sessionKey?: string | null
   history?: AgentChatHistoryMessage[]
   onComplete?: () => void
@@ -57,6 +58,7 @@ export function useAgentConversation(
   const streamAbortRef = useRef<AbortController | null>(null)
   const onCompleteRef = useRef(options.onComplete)
   const onSessionKeyChangeRef = useRef(options.onSessionKeyChange)
+  const sessionIdRef = useRef(options.sessionId ?? 'main')
   // Per-turn resume bookkeeping. `turnId` is captured from the response
   // header; `lastSeq` advances with every SSE event so a reconnect can
   // resume via Last-Event-ID.
@@ -66,6 +68,10 @@ export function useAgentConversation(
   useEffect(() => {
     sessionKeyRef.current = options.sessionKey ?? ''
   }, [options.sessionKey])
+
+  useEffect(() => {
+    sessionIdRef.current = options.sessionId ?? 'main'
+  }, [options.sessionId])
 
   useEffect(() => {
     historyRef.current = options.history ?? []
@@ -243,7 +249,10 @@ export function useAgentConversation(
       // Stop button drops out mid-turn while events keep arriving.
       let weStartedStream = false
       try {
-        const active = await fetchActiveHarnessTurn(agentId)
+        const active = await fetchActiveHarnessTurn(
+          agentId,
+          sessionIdRef.current,
+        )
         if (cancelled || !active || active.status !== 'running') return
         if (streamAbortRef.current) return // someone else already owns the stream
 
@@ -272,6 +281,7 @@ export function useAgentConversation(
         weStartedStream = true
 
         const response = await attachToHarnessTurn(agentId, {
+          sessionId: sessionIdRef.current,
           turnId: active.turnId,
           signal: abortController.signal,
         })
@@ -327,12 +337,12 @@ export function useAgentConversation(
     attachments: ServerAttachmentPayload[],
     signal: AbortSignal,
   ): Promise<Response> => {
-    const initial = await chatWithHarnessAgent(
-      targetAgentId,
-      text,
+    const sessionId = sessionIdRef.current
+    const initial = await chatWithHarnessAgent(targetAgentId, text, {
+      sessionId,
       signal,
       attachments,
-    )
+    })
     if (initial.status !== 409) return initial
     // 409 means the server already has an active turn for this agent
     // (a previous tab kicked one off and we're a fresh mount that
@@ -340,6 +350,7 @@ export function useAgentConversation(
     const body = (await initial.json()) as { turnId?: string }
     if (!body.turnId) return initial
     return attachToHarnessTurn(targetAgentId, {
+      sessionId,
       turnId: body.turnId,
       signal,
     })
@@ -446,6 +457,7 @@ export function useAgentConversation(
     streamAbortRef.current = null
     try {
       await cancelHarnessTurn(agentId, {
+        sessionId: sessionIdRef.current,
         turnId,
         reason: 'user pressed stop',
       })

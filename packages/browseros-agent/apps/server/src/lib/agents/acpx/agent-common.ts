@@ -37,6 +37,7 @@ export async function prepareBrowserosManagedContext(
   const paths = resolveAgentRuntimePaths({
     browserosDir: input.browserosDir,
     agentId: input.agent.id,
+    sessionId: input.sessionId,
     cwd: input.cwdOverride,
   })
   await ensureUsableCwd(paths.effectiveCwd, !input.isSelectedCwd)
@@ -70,13 +71,17 @@ export async function finishBrowserosManagedContext(input: {
     skillIdentity: input.skillNames.join(','),
     commandIdentity,
   })
-  await saveLatestRuntimeState(input.paths.runtimeStatePath, {
+  const latest = {
     sessionId: input.input.sessionId,
     runtimeSessionKey,
     cwd: input.paths.effectiveCwd,
     agentHome: input.paths.agentHome,
     updatedAt: Date.now(),
-  })
+  }
+  await Promise.all([
+    saveLatestRuntimeState(input.paths.runtimeSessionStatePath, latest),
+    saveLatestRuntimeState(input.paths.runtimeStatePath, latest),
+  ])
   return {
     cwd: input.paths.effectiveCwd,
     runtimeSessionKey,

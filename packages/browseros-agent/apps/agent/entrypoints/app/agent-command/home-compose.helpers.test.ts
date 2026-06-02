@@ -26,10 +26,14 @@ describe('routeHomeSend', () => {
   })
 
   it('routes a named agent to its harness conversation', () => {
-    expect(routeHomeSend(acp, 'do a thing')).toEqual({
+    expect(
+      routeHomeSend(acp, 'do a thing', {
+        agentSessionId: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).toEqual({
       kind: 'acp',
       agentId: 'agent-1',
-      path: '/home/agents/agent-1?q=do%20a%20thing',
+      path: '/home/agents/agent-1/sessions/00000000-0000-4000-8000-000000000001?q=do%20a%20thing',
     })
   })
 
@@ -50,6 +54,14 @@ describe('routeHomeSend', () => {
       type: 'acp',
       kind: 'acp',
     }
-    expect(routeHomeSend(acpNoId, 'hello')).toBeNull()
+    expect(
+      routeHomeSend(acpNoId, 'hello', {
+        agentSessionId: '00000000-0000-4000-8000-000000000001',
+      }),
+    ).toBeNull()
+  })
+
+  it('returns null for an acp target without a session id', () => {
+    expect(routeHomeSend(acp, 'hello')).toBeNull()
   })
 })

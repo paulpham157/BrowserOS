@@ -38,6 +38,15 @@ describe('FileMessageQueue', () => {
     ])
   })
 
+  it('persists the target session id with queued messages', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    await queue.append('a', { sessionId, message: 'one' })
+
+    expect(await queue.list('a')).toEqual([
+      expect.objectContaining({ sessionId, message: 'one' }),
+    ])
+  })
+
   it('returns null when popping an empty queue', async () => {
     expect(await queue.popOldest('a')).toBeNull()
   })

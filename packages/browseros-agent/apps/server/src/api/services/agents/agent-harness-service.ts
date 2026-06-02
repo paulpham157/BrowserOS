@@ -8,7 +8,11 @@ import {
   AcpxRuntime,
   unwrapBrowserosAcpUserMessage,
 } from '../../../lib/agents/acpx/runtime'
-import type { AgentDefinition } from '../../../lib/agents/agent-types'
+import {
+  type AgentDefinition,
+  type AgentSessionId,
+  MAIN_AGENT_SESSION_ID,
+} from '../../../lib/agents/agent-types'
 import {
   getHermesHarnessHostDir,
   writeHermesPerAgentProvider,
@@ -55,6 +59,13 @@ export interface AgentActivity {
   lastUsedAt: number | null
 }
 
+type SessionActivity = {
+  sessionId: AgentSessionId
+  status: 'working' | 'error'
+  lastEventAt: number
+  lastError?: string
+}
+
 export interface AgentDefinitionWithActivity extends AgentDefinition {
   status: AgentLiveness
   lastUsedAt: number | null
@@ -74,6 +85,8 @@ export interface AgentDefinitionWithActivity extends AgentDefinition {
   /** Last error message when status === 'error'; null otherwise. */
   lastError: string | null
   lastErrorAt: number | null
+  /** Most recent persisted session for this agent; null until first use. */
+  latestSessionId: AgentSessionId | null
   /** When non-null, an in-flight turn this row can be resumed from. */
   activeTurnId: string | null
   /** Persistent FIFO queue of messages waiting to run for this agent. */
@@ -89,6 +102,10 @@ const ZERO_BUCKETS = (): number[] =>
  * enrichment time; no timer cleanup necessary.
  */
 const ASLEEP_THRESHOLD_MS = 15 * 60 * 1000
+
+function activityKey(agentId: string, sessionId: AgentSessionId): string {
+  return `${agentId}\u0000${sessionId}`
+}
 
 /**
  * Per-turn event the harness emits to subscribers. Lets services that
@@ -131,10 +148,7 @@ export class AgentHarnessService {
   // `lastUsedAt` survives via the acpx session record's `lastUsedAt`,
   // and an idle/asleep agent post-restart will read fine from the
   // record's timestamp without ever flipping to `working`).
-  private readonly activity = new Map<
-    string,
-    { status: 'working' | 'error'; lastEventAt: number; lastError?: string }
-  >()
+  private readonly activity = new Map<string, SessionActivity>()
 
   constructor(
     deps: {
@@ -208,16 +222,30 @@ export class AgentHarnessService {
     ])
     const now = Date.now()
     return agents.map((agent) => {
-      const live = this.activity.get(agent.id)
       const snapshot = snapshots.get(agent.id) ?? null
-      const lastUsedAt = snapshot?.lastUsedAt ?? null
-      const activeTurn = this.turnRegistry.getActiveFor(agent.id, 'main')
+      const liveLatest = this.getLatestActivity(agent.id)
+      const liveWins =
+        liveLatest != null &&
+        (!snapshot?.lastUsedAt || liveLatest.lastEventAt >= snapshot.lastUsedAt)
+      const latestSessionId = liveWins
+        ? liveLatest.sessionId
+        : (snapshot?.sessionId ?? null)
+      const live = latestSessionId
+        ? this.activity.get(activityKey(agent.id, latestSessionId))
+        : liveLatest
+      const lastUsedAt = liveWins
+        ? liveLatest.lastEventAt
+        : (snapshot?.lastUsedAt ?? null)
+      const activeTurn = latestSessionId
+        ? this.turnRegistry.getActiveFor(agent.id, latestSessionId)
+        : null
       return {
         ...agent,
         pinned: agent.pinned ?? false,
         status: deriveStatus(live, lastUsedAt, now),
         lastUsedAt,
-        lastUserMessage: snapshot?.lastUserMessage ?? null,
+        lastUserMessage:
+          activeTurn?.prompt ?? snapshot?.lastUserMessage ?? null,
         cwd: snapshot?.cwd ?? null,
         tokens: snapshot?.tokens ?? null,
         turnsByDay: ZERO_BUCKETS(),
@@ -225,6 +253,7 @@ export class AgentHarnessService {
         lastError: live?.status === 'error' ? (live.lastError ?? null) : null,
         lastErrorAt:
           live?.status === 'error' ? (live.lastEventAt ?? null) : null,
+        latestSessionId,
         activeTurnId: activeTurn?.turnId ?? null,
         queue: queueSnapshot[agent.id] ?? [],
       }
@@ -257,19 +286,45 @@ export class AgentHarnessService {
   private async fetchRowSnapshot(
     agent: AgentDefinition,
   ): Promise<AgentRowSnapshot | null> {
+    if (typeof this.runtime.getLatestRowSnapshot === 'function') {
+      return this.runtime.getLatestRowSnapshot(agent)
+    }
     if (typeof this.runtime.getRowSnapshot === 'function') {
-      return this.runtime.getRowSnapshot({ agent, sessionId: 'main' })
+      const snapshot = await this.runtime.getRowSnapshot({
+        agent,
+        sessionId: MAIN_AGENT_SESSION_ID,
+      })
+      return snapshot
+        ? {
+            ...snapshot,
+            sessionId: snapshot.sessionId ?? MAIN_AGENT_SESSION_ID,
+          }
+        : null
     }
     // Legacy fallback: derive only `lastUsedAt` from the history page.
-    const page = await this.runtime.getHistory({ agent, sessionId: 'main' })
+    const page = await this.runtime.getHistory({
+      agent,
+      sessionId: MAIN_AGENT_SESSION_ID,
+    })
     const last = page.items.at(-1)?.createdAt
     if (typeof last !== 'number' || !Number.isFinite(last)) return null
     return {
+      sessionId: MAIN_AGENT_SESSION_ID,
       cwd: null,
       lastUsedAt: last,
       lastUserMessage: null,
       tokens: null,
     }
+  }
+
+  private getLatestActivity(agentId: string): SessionActivity | undefined {
+    const prefix = `${agentId}\u0000`
+    let latest: SessionActivity | undefined
+    for (const [key, entry] of this.activity.entries()) {
+      if (!key.startsWith(prefix)) continue
+      if (!latest || entry.lastEventAt > latest.lastEventAt) latest = entry
+    }
+    return latest
   }
 
   /**
@@ -305,26 +360,44 @@ export class AgentHarnessService {
     }
   }
 
-  /** Mark `agentId` as actively running a turn. */
-  notifyTurnStarted(agentId: string): void {
-    this.activity.set(agentId, { status: 'working', lastEventAt: Date.now() })
+  /** Mark an agent session as actively running a turn. */
+  notifyTurnStarted(
+    agentId: string,
+    sessionId: AgentSessionId = MAIN_AGENT_SESSION_ID,
+  ): void {
+    this.activity.set(activityKey(agentId, sessionId), {
+      sessionId,
+      status: 'working',
+      lastEventAt: Date.now(),
+    })
   }
 
-  /** Clear the working flag. `error` keeps the row badged as needing attention. */
+  /** Clear the session working flag. `error` keeps that session badged as needing attention. */
   notifyTurnEnded(
     agentId: string,
+    sessionId: AgentSessionId = MAIN_AGENT_SESSION_ID,
     outcome: { ok: boolean; error?: string } = { ok: true },
   ): void {
+    const key = activityKey(agentId, sessionId)
     if (!outcome.ok) {
-      this.activity.set(agentId, {
+      this.activity.set(key, {
+        sessionId,
         status: 'error',
         lastEventAt: Date.now(),
         lastError: outcome.error,
       })
     } else {
-      // Successful turn — drop the in-memory entry. Liveness will be
-      // derived from the session record's `lastUsedAt` on next read.
-      this.activity.delete(agentId)
+      // Successful turn — clear working only when this same session has no
+      // remaining running turn.
+      if (this.turnRegistry.getActiveFor(agentId, sessionId)) {
+        this.activity.set(key, {
+          sessionId,
+          status: 'working',
+          lastEventAt: Date.now(),
+        })
+      } else {
+        this.activity.delete(key)
+      }
     }
     // The queue drain runs on every turn-end (success or failure) so
     // a queued message is the next thing to run. Fire-and-forget; any
@@ -343,17 +416,19 @@ export class AgentHarnessService {
   private async maybeStartNextFromQueue(agentId: string): Promise<void> {
     const next = await this.messageQueue.popOldest(agentId)
     if (!next) return
+    const sessionId = next.sessionId ?? MAIN_AGENT_SESSION_ID
     // Race guard: a turn may have started between `popOldest` and now
     // (e.g. the user typed and clicked Send directly between cancel
     // and the drain). Put the message back at the head and let the
     // next turn-end retry.
-    if (this.turnRegistry.getActiveFor(agentId, 'main')) {
+    if (this.turnRegistry.getActiveFor(agentId, sessionId)) {
       await this.messageQueue.pushFront(agentId, next)
       return
     }
     try {
       await this.startTurn({
         agentId,
+        sessionId,
         message: next.message,
         attachments: next.attachments,
       })
@@ -385,11 +460,13 @@ export class AgentHarnessService {
    */
   async enqueueMessage(input: {
     agentId: string
+    sessionId?: AgentSessionId
     message: string
     attachments?: ReadonlyArray<QueuedMessageAttachment>
   }): Promise<QueuedMessage> {
     const agent = await this.requireAgent(input.agentId)
     const queued = await this.messageQueue.append(agent.id, {
+      sessionId: input.sessionId,
       message: input.message,
       attachments: input.attachments,
     })
@@ -397,7 +474,12 @@ export class AgentHarnessService {
     // time (e.g. the user enqueued during the brief window between
     // turns), pop it back off and start it directly. Avoids the
     // queue sitting idle while the agent is also idle.
-    if (!this.turnRegistry.getActiveFor(agent.id, 'main')) {
+    if (
+      !this.turnRegistry.getActiveFor(
+        agent.id,
+        input.sessionId ?? MAIN_AGENT_SESSION_ID,
+      )
+    ) {
       void this.maybeStartNextFromQueue(agent.id)
     }
     return queued
@@ -527,9 +609,12 @@ export class AgentHarnessService {
     return this.agentStore.get(agentId)
   }
 
-  async getHistory(agentId: string): Promise<AgentHistoryPage> {
+  async getHistory(
+    agentId: string,
+    sessionId: AgentSessionId = MAIN_AGENT_SESSION_ID,
+  ): Promise<AgentHistoryPage> {
     const agent = await this.requireAgent(agentId)
-    return this.runtime.getHistory({ agent, sessionId: 'main' })
+    return this.runtime.getHistory({ agent, sessionId })
   }
 
   /**
@@ -542,21 +627,23 @@ export class AgentHarnessService {
    */
   async startTurn(input: {
     agentId: string
+    sessionId?: AgentSessionId
     message: string
     attachments?: ReadonlyArray<{ mediaType: string; data: string }>
     cwd?: string
   }): Promise<{ turnId: string; frames: ReadableStream<TurnFrame> }> {
     const agent = await this.requireAgent(input.agentId)
+    const sessionId = input.sessionId ?? MAIN_AGENT_SESSION_ID
 
-    const existing = this.turnRegistry.getActiveFor(agent.id, 'main')
+    const existing = this.turnRegistry.getActiveFor(agent.id, sessionId)
     if (existing) {
       throw new TurnAlreadyActiveError(agent.id, existing.turnId)
     }
 
-    const turn = this.turnRegistry.register(agent.id, 'main', {
+    const turn = this.turnRegistry.register(agent.id, sessionId, {
       prompt: input.message,
     })
-    this.notifyTurnStarted(agent.id)
+    this.notifyTurnStarted(agent.id, sessionId)
     this.emitTurnLifecycle(agent, { type: 'turn_started' })
 
     // Kick off the runtime call in the background. The per-turn
@@ -595,7 +682,7 @@ export class AgentHarnessService {
    */
   getActiveTurn(
     agentId: string,
-    sessionId: 'main' = 'main',
+    sessionId: AgentSessionId = MAIN_AGENT_SESSION_ID,
   ): ActiveTurnInfo | null {
     const turn = this.turnRegistry.getActiveFor(agentId, sessionId)
     if (!turn) return null
@@ -615,12 +702,16 @@ export class AgentHarnessService {
    */
   cancelTurn(input: {
     agentId: string
+    sessionId?: AgentSessionId
     turnId?: string
     reason?: string
   }): boolean {
     const turnId =
       input.turnId ??
-      this.turnRegistry.getActiveFor(input.agentId, 'main')?.turnId
+      this.turnRegistry.getActiveFor(
+        input.agentId,
+        input.sessionId ?? MAIN_AGENT_SESSION_ID,
+      )?.turnId
     if (!turnId) return false
     return this.turnRegistry.cancel(turnId, input.reason)
   }
@@ -634,6 +725,7 @@ export class AgentHarnessService {
    */
   async send(input: {
     agentId: string
+    sessionId?: AgentSessionId
     message: string
     attachments?: ReadonlyArray<{ mediaType: string; data: string }>
     cwd?: string
@@ -665,12 +757,13 @@ export class AgentHarnessService {
   ): Promise<void> {
     const turn = this.turnRegistry.get(turnId)
     if (!turn) return
+    const sessionId = turn.sessionId
     let lastErrorMessage: string | undefined
 
     try {
       const upstream = await this.runtime.send({
         agent,
-        sessionId: 'main',
+        sessionId,
         sessionKey: agent.sessionKey,
         message: input.message,
         attachments: input.attachments,
@@ -722,7 +815,7 @@ export class AgentHarnessService {
         })
       }
     } finally {
-      this.notifyTurnEnded(agent.id, {
+      this.notifyTurnEnded(agent.id, sessionId, {
         ok: lastErrorMessage === undefined,
         error: lastErrorMessage,
       })

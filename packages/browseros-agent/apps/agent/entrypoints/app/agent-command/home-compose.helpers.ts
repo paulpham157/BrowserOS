@@ -14,6 +14,7 @@ export type HomeSendRoute =
 export function routeHomeSend(
   provider: Provider,
   text: string,
+  options: { agentSessionId?: string } = {},
 ): HomeSendRoute | null {
   const query = text.trim()
   if (!query) return null
@@ -21,11 +22,11 @@ export function routeHomeSend(
   if (provider.kind === 'acp') {
     // A malformed acp target (missing agentId) must not silently misroute to
     // the LLM chat with the agent id treated as a provider id — fail visibly.
-    if (!provider.agentId) return null
+    if (!provider.agentId || !options.agentSessionId) return null
     return {
       kind: 'acp',
       agentId: provider.agentId,
-      path: `/home/agents/${provider.agentId}?q=${encoded}`,
+      path: `/home/agents/${provider.agentId}/sessions/${options.agentSessionId}?q=${encoded}`,
     }
   }
   return {

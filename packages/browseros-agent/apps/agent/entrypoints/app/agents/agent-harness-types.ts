@@ -77,6 +77,8 @@ export interface HarnessAgent {
   failedByDay?: number[]
   lastError?: string | null
   lastErrorAt?: number | null
+  /** Latest persisted conversation session for this agent. */
+  latestSessionId?: string | null
   /** When non-null, an in-flight turn this row can be resumed from. */
   activeTurnId?: string | null
   /** Persistent FIFO queue of messages waiting for this agent. */
@@ -91,6 +93,7 @@ export interface HarnessQueuedMessageAttachment {
 export interface HarnessQueuedMessage {
   id: string
   createdAt: number
+  sessionId?: string
   message: string
   attachments?: ReadonlyArray<HarnessQueuedMessageAttachment>
 }
@@ -164,7 +167,7 @@ export interface HarnessHistoryToolCall {
 export interface HarnessHistoryEntry {
   id: string
   agentId: string
-  sessionId: 'main'
+  sessionId: string
   role: 'user' | 'assistant'
   text: string
   createdAt: number
@@ -174,7 +177,7 @@ export interface HarnessHistoryEntry {
 
 export interface HarnessAgentHistoryPage {
   agentId: string
-  sessionId: 'main'
+  sessionId: string
   items: HarnessHistoryEntry[]
 }
 

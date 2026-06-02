@@ -12,9 +12,15 @@ import {
   AgentHarnessService,
   type EnsureVmRuntimeReady,
 } from '../../../../src/api/services/agents/agent-harness-service'
-import type { AgentDefinition } from '../../../../src/lib/agents/agent-types'
+import type {
+  AgentDefinition,
+  AgentSessionId,
+} from '../../../../src/lib/agents/agent-types'
 import type { AgentStore } from '../../../../src/lib/agents/storage/agent-store'
-import { TurnRegistry } from '../../../../src/lib/agents/turns/active-turn-registry'
+import {
+  type TurnFrame,
+  TurnRegistry,
+} from '../../../../src/lib/agents/turns/active-turn-registry'
 import type {
   AgentRuntime,
   AgentStreamEvent,
@@ -150,6 +156,45 @@ describe('AgentHarnessService', () => {
     })
   })
 
+  it('reads history from a requested session id', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const agent: AgentDefinition = {
+      id: 'agent-1',
+      name: 'Review bot',
+      adapter: 'codex',
+      modelId: 'gpt-5.5',
+      reasoningEffort: 'medium',
+      permissionMode: 'approve-all',
+      sessionKey: 'agent:agent-1:main',
+      createdAt: 1000,
+      updatedAt: 1000,
+    }
+    const runtimeInputs: unknown[] = []
+    const runtime: AgentRuntime = {
+      async status() {
+        return { state: 'ready' }
+      },
+      async listSessions() {
+        return []
+      },
+      async getHistory(input) {
+        runtimeInputs.push(input)
+        return { agentId: agent.id, sessionId: input.sessionId, items: [] }
+      },
+      async send() {
+        return new ReadableStream<AgentStreamEvent>()
+      },
+    }
+    const service = new AgentHarnessService({
+      agentStore: createAgentStore([agent]) as AgentStore,
+      runtime,
+    })
+
+    await service.getHistory(agent.id, sessionId)
+
+    expect(runtimeInputs).toEqual([{ agent, sessionId }])
+  })
+
   it('marks an agent working while a turn streams and idle once it ends', async () => {
     const agent: AgentDefinition = {
       id: 'live-1',
@@ -250,6 +295,204 @@ describe('AgentHarnessService', () => {
     await collectStream(await service.send({ agentId: agent.id, message: 'x' }))
     const listed = await service.listAgentsWithActivity()
     expect(listed[0]?.status).toBe('error')
+  })
+
+  it('shows latest sidepanel session errors on the activity row', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const agent: AgentDefinition = {
+      id: 'agent-1',
+      name: 'Review bot',
+      adapter: 'codex',
+      modelId: 'gpt-5.5',
+      reasoningEffort: 'medium',
+      permissionMode: 'approve-all',
+      sessionKey: 'agent:agent-1:main',
+      createdAt: 1000,
+      updatedAt: 1000,
+    }
+    const runtime: AgentRuntime = {
+      async status() {
+        return { state: 'ready' }
+      },
+      async listSessions() {
+        return []
+      },
+      async getHistory(input) {
+        return {
+          agentId: input.agent.id,
+          sessionId: input.sessionId,
+          items: [],
+        }
+      },
+      async send() {
+        return new ReadableStream<AgentStreamEvent>({
+          start(controller) {
+            controller.enqueue({ type: 'error', message: 'sidepanel failed' })
+            controller.close()
+          },
+        })
+      },
+    }
+    const service = new AgentHarnessService({
+      agentStore: createAgentStore([agent]) as AgentStore,
+      runtime,
+    })
+
+    const turn = await service.startTurn({
+      agentId: agent.id,
+      sessionId,
+      message: 'sidepanel turn',
+    })
+    await collectFrameStream(turn.frames)
+    const listed = await service.listAgentsWithActivity()
+    expect(listed[0]?.status).toBe('error')
+    expect(listed[0]?.latestSessionId).toBe(sessionId)
+    expect(listed[0]?.lastError).toBe('sidepanel failed')
+  })
+
+  it('prefers newer live activity over an older persisted row snapshot', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const agent: AgentDefinition = {
+      id: 'agent-1',
+      name: 'Review bot',
+      adapter: 'codex',
+      modelId: 'gpt-5.5',
+      reasoningEffort: 'medium',
+      permissionMode: 'approve-all',
+      sessionKey: 'agent:agent-1:main',
+      createdAt: 1000,
+      updatedAt: 1000,
+    }
+    const held = createHeldRuntime()
+    const runtime: AgentRuntime = {
+      ...held.runtime,
+      async getLatestRowSnapshot() {
+        return {
+          sessionId: 'main',
+          cwd: null,
+          lastUsedAt: 1,
+          lastUserMessage: 'old main prompt',
+          tokens: null,
+        }
+      },
+    }
+    const service = new AgentHarnessService({
+      agentStore: createAgentStore([agent]) as AgentStore,
+      runtime,
+    })
+
+    const turn = await service.startTurn({
+      agentId: agent.id,
+      sessionId,
+      message: 'new sidepanel prompt',
+    })
+    const frames = collectFrameStream(turn.frames)
+    const listed = await service.listAgentsWithActivity()
+
+    expect(listed[0]?.status).toBe('working')
+    expect(listed[0]?.latestSessionId).toBe(sessionId)
+    expect(listed[0]?.activeTurnId).toBe(turn.turnId)
+    expect(listed[0]?.lastUserMessage).toBe('new sidepanel prompt')
+    expect(listed[0]?.lastUsedAt).toBeGreaterThan(1)
+
+    held.release(sessionId)
+    await frames
+  })
+
+  it('runs concurrent turns for different sessions and blocks duplicates per session', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const agent: AgentDefinition = {
+      id: 'agent-1',
+      name: 'Review bot',
+      adapter: 'codex',
+      modelId: 'gpt-5.5',
+      reasoningEffort: 'medium',
+      permissionMode: 'approve-all',
+      sessionKey: 'agent:agent-1:main',
+      createdAt: 1000,
+      updatedAt: 1000,
+    }
+    const held = createHeldRuntime()
+    const service = new AgentHarnessService({
+      agentStore: createAgentStore([agent]) as AgentStore,
+      runtime: held.runtime,
+    })
+
+    const main = await service.startTurn({
+      agentId: agent.id,
+      sessionId: 'main',
+      message: 'main turn',
+    })
+    const sidepanel = await service.startTurn({
+      agentId: agent.id,
+      sessionId,
+      message: 'sidepanel turn',
+    })
+
+    expect(held.inputs.map((input) => input.sessionId)).toEqual([
+      'main',
+      sessionId,
+    ])
+    await expect(
+      service.startTurn({
+        agentId: agent.id,
+        sessionId,
+        message: 'duplicate',
+      }),
+    ).rejects.toThrow('already has an active turn')
+
+    held.release('main')
+    await collectFrameStream(main.frames)
+    let listed = await service.listAgentsWithActivity()
+    expect(listed[0]?.status).toBe('working')
+    expect(listed[0]?.latestSessionId).toBe(sessionId)
+
+    held.release(sessionId)
+    await collectFrameStream(sidepanel.frames)
+    listed = await service.listAgentsWithActivity()
+    expect(listed[0]?.status).toBe('idle')
+  })
+
+  it('drains queued messages into the queued session', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const agent: AgentDefinition = {
+      id: 'agent-1',
+      name: 'Review bot',
+      adapter: 'codex',
+      modelId: 'gpt-5.5',
+      reasoningEffort: 'medium',
+      permissionMode: 'approve-all',
+      sessionKey: 'agent:agent-1:main',
+      createdAt: 1000,
+      updatedAt: 1000,
+    }
+    const held = createHeldRuntime()
+    const service = new AgentHarnessService({
+      agentStore: createAgentStore([agent]) as AgentStore,
+      runtime: held.runtime,
+    })
+
+    const first = await service.startTurn({
+      agentId: agent.id,
+      sessionId,
+      message: 'first',
+    })
+    const queued = await service.enqueueMessage({
+      agentId: agent.id,
+      sessionId,
+      message: 'second',
+    })
+
+    expect(queued.sessionId).toBe(sessionId)
+    held.release(sessionId)
+    await collectFrameStream(first.frames)
+    await waitFor(() => held.inputs.length === 2)
+
+    expect(held.inputs.map((input) => input.sessionId)).toEqual([
+      sessionId,
+      sessionId,
+    ])
+    held.release(sessionId)
   })
 
   it('writes a per-agent Hermes config.yaml + .env when adapter=hermes and provider config complete', async () => {
@@ -546,6 +789,57 @@ function stubRuntime(): AgentRuntime {
   }
 }
 
+function createHeldRuntime(): {
+  runtime: AgentRuntime
+  inputs: Array<Parameters<AgentRuntime['send']>[0]>
+  release(sessionId: AgentSessionId): void
+} {
+  const inputs: Array<Parameters<AgentRuntime['send']>[0]> = []
+  const releases = new Map<AgentSessionId, () => void>()
+  return {
+    inputs,
+    release(sessionId) {
+      const release = releases.get(sessionId)
+      if (!release) throw new Error(`No held stream for ${sessionId}`)
+      release()
+      releases.delete(sessionId)
+    },
+    runtime: {
+      async status() {
+        return { state: 'ready' }
+      },
+      async listSessions() {
+        return []
+      },
+      async getHistory(input) {
+        return {
+          agentId: input.agent.id,
+          sessionId: input.sessionId,
+          items: [],
+        }
+      },
+      async send(input) {
+        inputs.push(input)
+        const gate = new Promise<void>((resolve) => {
+          releases.set(input.sessionId, resolve)
+        })
+        return new ReadableStream<AgentStreamEvent>({
+          async start(controller) {
+            controller.enqueue({
+              type: 'text_delta',
+              text: `started ${input.sessionId}`,
+              stream: 'output',
+            })
+            await gate
+            controller.enqueue({ type: 'done', stopReason: 'end_turn' })
+            controller.close()
+          },
+        })
+      },
+    },
+  }
+}
+
 function createAgentStore(agents: AgentDefinition[]) {
   return {
     async list() {
@@ -616,4 +910,34 @@ async function collectStream(
     reader.releaseLock()
   }
   return events
+}
+
+async function collectFrameStream(
+  stream: ReadableStream<TurnFrame>,
+): Promise<TurnFrame[]> {
+  const reader = stream.getReader()
+  const frames: TurnFrame[] = []
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      frames.push(value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  return frames
+}
+
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 500,
+): Promise<void> {
+  const started = Date.now()
+  while (!predicate()) {
+    if (Date.now() - started > timeoutMs) {
+      throw new Error('Timed out waiting for condition')
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
 }

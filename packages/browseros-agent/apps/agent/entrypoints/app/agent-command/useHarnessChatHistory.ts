@@ -6,7 +6,11 @@ import { mapHarnessHistoryPage } from './harness-history-mapper'
 
 const HISTORY_QUERY_KEY = 'harness-agent-history'
 
-export function useHarnessChatHistory(agentId: string, enabled = true) {
+export function useHarnessChatHistory(
+  agentId: string,
+  sessionId = 'main',
+  enabled = true,
+) {
   const {
     baseUrl,
     isLoading: urlLoading,
@@ -14,9 +18,11 @@ export function useHarnessChatHistory(agentId: string, enabled = true) {
   } = useAgentServerUrl()
 
   const query = useQuery<AgentHistoryPageResponse, Error>({
-    queryKey: [HISTORY_QUERY_KEY, baseUrl, agentId, 'main'],
+    queryKey: [HISTORY_QUERY_KEY, baseUrl, agentId, sessionId],
     queryFn: async () => {
-      return mapHarnessHistoryPage(await fetchHarnessAgentHistory(agentId))
+      return mapHarnessHistoryPage(
+        await fetchHarnessAgentHistory(agentId, sessionId),
+      )
     },
     enabled: Boolean(baseUrl) && !urlLoading && enabled && Boolean(agentId),
   })

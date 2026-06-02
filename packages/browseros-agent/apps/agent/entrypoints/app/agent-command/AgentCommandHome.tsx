@@ -143,15 +143,21 @@ export const AgentCommandHome: FC = () => {
 
   const handleSend = async (input: ConversationInputSendInput) => {
     if (!selectedProvider) return
-    const route = routeHomeSend(selectedProvider, input.text)
+    const agentSessionId =
+      selectedProvider.kind === 'acp' ? crypto.randomUUID() : undefined
+    const route = routeHomeSend(selectedProvider, input.text, {
+      agentSessionId,
+    })
     if (!route) return
     if (route.kind === 'acp') {
+      if (!agentSessionId) return
       // Stash text + attachments in the in-memory registry. Text also travels
       // in `?q=` so a hard refresh / shareable URL still works for text-only
       // prompts; attachments are registry-only (a multi-MB dataUrl can't ride
       // a URL param). The chat screen prefers the registry when both exist.
       setPendingInitialMessage({
         agentId: route.agentId,
+        sessionId: agentSessionId,
         text: input.text,
         attachments: input.attachments,
         createdAt: Date.now(),
@@ -216,7 +222,13 @@ export const AgentCommandHome: FC = () => {
               agents={orderedAgents}
               adapters={adapters}
               onOpenAgents={() => navigate(manageAgentsPath)}
-              onSelectAgent={(agentId) => navigate(`/home/agents/${agentId}`)}
+              onSelectAgent={(agentId) => {
+                const agent = orderedAgents.find(
+                  (entry) => entry.id === agentId,
+                )
+                const sessionId = agent?.latestSessionId ?? crypto.randomUUID()
+                navigate(`/home/agents/${agentId}/sessions/${sessionId}`)
+              }}
             />
           </>
         ) : null}

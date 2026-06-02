@@ -54,6 +54,7 @@ describe('buildSidepanelPreparedSendMessagesRequest', () => {
     )
     expect(request.body).toEqual({
       conversationId,
+      agentSessionId: conversationId,
       message: 'Inspect the current tab',
       browserContext: {
         activeTab: { id: 10, url: 'https://example.com', title: 'Example' },
@@ -66,6 +67,23 @@ describe('buildSidepanelPreparedSendMessagesRequest', () => {
         url: 'https://example.com',
         title: 'Example',
       },
+    })
+  })
+
+  it('can send created-agent targets through the main agent session', () => {
+    const request = buildSidepanelPreparedSendMessagesRequest({
+      agentServerUrl: 'http://127.0.0.1:5151',
+      target: acpTarget,
+      fallbackProvider,
+      agentSessionId: 'main',
+      message: 'Inspect from new tab',
+      ...commonRequestInput(),
+    })
+
+    expect(request.body).toMatchObject({
+      conversationId,
+      agentSessionId: 'main',
+      message: 'Inspect from new tab',
     })
   })
 

@@ -34,7 +34,7 @@ export function mapHarnessHistoryPage(
       text: item.text,
       timestamp: item.createdAt,
       messageSeq: index + 1,
-      sessionKey: 'main',
+      sessionKey: page.sessionId,
       source: 'user-chat',
       ...(item.reasoning ? { reasoning: item.reasoning } : {}),
       ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
@@ -47,11 +47,11 @@ export function mapHarnessHistoryPage(
 
   return {
     agentId: page.agentId,
-    sessionKey: 'main',
+    sessionKey: page.sessionId,
     session: {
-      key: 'main',
+      key: page.sessionId,
       updatedAt,
-      sessionId: 'main',
+      sessionId: page.sessionId,
       agentId: page.agentId,
       kind: 'agent-harness',
       source: 'user-chat',

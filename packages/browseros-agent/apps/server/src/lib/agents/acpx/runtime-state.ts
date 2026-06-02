@@ -7,9 +7,10 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import type { AgentSessionId } from '../agent-types'
 
 export interface LatestRuntimeState {
-  sessionId: 'main'
+  sessionId: AgentSessionId
   runtimeSessionKey: string
   cwd: string
   agentHome: string
@@ -53,7 +54,7 @@ export async function saveLatestRuntimeState(
 
 export function deriveRuntimeSessionKey(input: {
   agentId: string
-  sessionId: 'main'
+  sessionId: AgentSessionId
   adapter: string
   cwd: string
   agentHome: string
@@ -72,7 +73,8 @@ function isLatestRuntimeState(value: unknown): value is LatestRuntimeState {
   if (!value || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
   return (
-    record.sessionId === 'main' &&
+    typeof record.sessionId === 'string' &&
+    record.sessionId.length > 0 &&
     typeof record.runtimeSessionKey === 'string' &&
     typeof record.cwd === 'string' &&
     typeof record.agentHome === 'string' &&

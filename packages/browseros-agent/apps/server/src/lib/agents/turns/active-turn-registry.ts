@@ -6,6 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { logger } from '../../logger'
+import { type AgentSessionId, MAIN_AGENT_SESSION_ID } from '../agent-types'
 import type { AgentStreamEvent } from '../types'
 
 export type TurnStatus = 'running' | 'done' | 'error' | 'cancelled'
@@ -19,7 +20,7 @@ export interface TurnFrame {
 export interface ActiveTurnInfo {
   turnId: string
   agentId: string
-  sessionId: 'main'
+  sessionId: AgentSessionId
   status: TurnStatus
   lastSeq: number
   startedAt: number
@@ -36,7 +37,7 @@ interface Subscriber {
 interface ActiveTurn {
   turnId: string
   agentId: string
-  sessionId: 'main'
+  sessionId: AgentSessionId
   status: TurnStatus
   buffer: RingBuffer
   subscribers: Set<Subscriber>
@@ -142,7 +143,7 @@ export class TurnRegistry {
    */
   register(
     agentId: string,
-    sessionId: 'main' = 'main',
+    sessionId: AgentSessionId = MAIN_AGENT_SESSION_ID,
     options: { prompt?: string | null } = {},
   ): ActiveTurn {
     const turn: ActiveTurn = {
@@ -171,7 +172,7 @@ export class TurnRegistry {
    */
   getActiveFor(
     agentId: string,
-    sessionId: 'main' = 'main',
+    sessionId: AgentSessionId = MAIN_AGENT_SESSION_ID,
   ): ActiveTurn | undefined {
     for (const turn of this.turns.values()) {
       if (

@@ -52,4 +52,17 @@ describe('mapHarnessHistoryPage', () => {
       },
     ])
   })
+
+  it('preserves non-main harness session ids', () => {
+    const sessionId = '00000000-0000-4000-8000-000000000001'
+    const page = mapHarnessHistoryPage({
+      agentId: 'agent-1',
+      sessionId,
+      items: [],
+    })
+
+    expect(page.sessionKey).toBe(sessionId)
+    expect(page.session?.key).toBe(sessionId)
+    expect(page.session?.sessionId).toBe(sessionId)
+  })
 })

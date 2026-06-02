@@ -21,9 +21,11 @@ import {
   isSupportedReasoningEffort,
 } from '../../lib/agents/adapters/catalog'
 import { AdapterHealthChecker } from '../../lib/agents/adapters/health'
-import type {
-  AgentAdapter,
-  AgentDefinition,
+import {
+  type AgentAdapter,
+  type AgentDefinition,
+  type AgentSessionId,
+  MAIN_AGENT_SESSION_ID,
 } from '../../lib/agents/agent-types'
 import type {
   ActiveTurnInfo,
@@ -64,9 +66,13 @@ type AgentRouteService = {
     agentId: string,
     patch: { name?: string; pinned?: boolean },
   ): Promise<AgentDefinition | null>
-  getHistory(agentId: string): Promise<AgentHistoryPage>
+  getHistory(
+    agentId: string,
+    sessionId?: AgentSessionId,
+  ): Promise<AgentHistoryPage>
   startTurn(input: {
     agentId: string
+    sessionId?: AgentSessionId
     message: string
     attachments?: ReadonlyArray<{ mediaType: string; data: string }>
     cwd?: string
@@ -75,14 +81,19 @@ type AgentRouteService = {
     turnId: string
     lastSeq?: number
   }): ReadableStream<TurnFrame> | null
-  getActiveTurn(agentId: string, sessionId?: 'main'): ActiveTurnInfo | null
+  getActiveTurn(
+    agentId: string,
+    sessionId?: AgentSessionId,
+  ): ActiveTurnInfo | null
   cancelTurn(input: {
     agentId: string
+    sessionId?: AgentSessionId
     turnId?: string
     reason?: string
   }): boolean
   enqueueMessage(input: {
     agentId: string
+    sessionId?: AgentSessionId
     message: string
     attachments?: ReadonlyArray<{ mediaType: string; data: string }>
   }): Promise<QueuedMessage>
@@ -107,6 +118,7 @@ type AgentRouteDeps = {
 
 type SidepanelAgentChatRequest = {
   conversationId: string
+  agentSessionId: AgentSessionId
   message: string
   browserContext?: BrowserContext
   selectedText?: string
@@ -188,6 +200,7 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
         try {
           started = await service.startTurn({
             agentId: agent.id,
+            sessionId: parsed.agentSessionId,
             message,
             cwd: parsed.userWorkingDir,
           })
@@ -197,7 +210,11 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
               {
                 error: 'Turn already active',
                 turnId: err.turnId,
-                attachUrl: `/agents/${agent.id}/chat/stream?turnId=${err.turnId}`,
+                attachUrl: buildChatStreamAttachUrl({
+                  agentId: agent.id,
+                  sessionId: parsed.agentSessionId,
+                  turnId: err.turnId,
+                }),
               },
               409,
             )
@@ -211,6 +228,7 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
           didRequestCancel = true
           service.cancelTurn({
             agentId: agent.id,
+            sessionId: parsed.agentSessionId,
             turnId: started.turnId,
             reason: 'sidepanel stream cancelled',
           })
@@ -229,7 +247,7 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
 
         return createAcpUIMessageStreamResponse(events, {
           headers: {
-            'X-Session-Id': 'main',
+            'X-Session-Id': parsed.agentSessionId,
             'X-Turn-Id': started.turnId,
           },
         })
@@ -269,9 +287,15 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
         return handleAgentRouteError(c, err)
       }
     })
-    .get('/:agentId/sessions/main/history', async (c) => {
+    .get('/:agentId/sessions/:sessionId/history', async (c) => {
+      const sessionId = c.req.param('sessionId')
+      if (!isAgentSessionId(sessionId)) {
+        return c.json({ error: 'sessionId must be "main" or a UUID' }, 400)
+      }
       try {
-        return c.json(await service.getHistory(c.req.param('agentId')))
+        return c.json(
+          await service.getHistory(c.req.param('agentId'), sessionId),
+        )
       } catch (err) {
         return handleAgentRouteError(c, err)
       }
@@ -281,57 +305,52 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
       const parsed = await parseChatBody(c)
       if ('error' in parsed) return c.json({ error: parsed.error }, 400)
 
-      let started: { turnId: string; frames: ReadableStream<TurnFrame> }
-      try {
-        started = await service.startTurn({
-          agentId,
-          message: parsed.message,
-          attachments: parsed.attachments,
-          cwd: parsed.cwd,
-        })
-      } catch (err) {
-        if (err instanceof TurnAlreadyActiveError) {
-          // Caller can attach via GET /chat/stream?turnId=… instead.
-          return c.json(
-            {
-              error: 'Turn already active',
-              turnId: err.turnId,
-              attachUrl: `/agents/${agentId}/chat/stream?turnId=${err.turnId}`,
-            },
-            409,
-          )
-        }
-        return handleAgentRouteError(c, err)
-      }
+      return startChatTurnResponse(c, service, {
+        agentId,
+        sessionId: MAIN_AGENT_SESSION_ID,
+        parsed,
+      })
+    })
+    .post('/:agentId/sessions/:sessionId/chat', async (c) => {
+      const sessionId = parseSessionIdParam(c)
+      if ('error' in sessionId) return c.json({ error: sessionId.error }, 400)
+      const parsed = await parseChatBody(c)
+      if ('error' in parsed) return c.json({ error: parsed.error }, 400)
 
-      return streamTurnFrames(c, started.frames, {
-        turnId: started.turnId,
+      return startChatTurnResponse(c, service, {
+        agentId: c.req.param('agentId'),
+        sessionId: sessionId.value,
+        parsed,
       })
     })
     .get('/:agentId/chat/active', (c) => {
       const agentId = c.req.param('agentId')
-      const info = service.getActiveTurn(agentId, 'main')
+      const info = service.getActiveTurn(agentId, MAIN_AGENT_SESSION_ID)
+      return c.json({ active: info })
+    })
+    .get('/:agentId/sessions/:sessionId/chat/active', (c) => {
+      const sessionId = parseSessionIdParam(c)
+      if ('error' in sessionId) return c.json({ error: sessionId.error }, 400)
+      const info = service.getActiveTurn(
+        c.req.param('agentId'),
+        sessionId.value,
+      )
       return c.json({ active: info })
     })
     .get('/:agentId/chat/stream', (c) => {
       const agentId = c.req.param('agentId')
-      const url = new URL(c.req.url)
-      const queryTurnId = url.searchParams.get('turnId')?.trim() || undefined
-      const turnId =
-        queryTurnId ?? service.getActiveTurn(agentId, 'main')?.turnId
-      if (!turnId) {
-        return c.json({ error: 'No active turn for this agent' }, 404)
-      }
-      const lastEventId =
-        c.req.header('Last-Event-ID') ??
-        url.searchParams.get('lastSeq') ??
-        undefined
-      const lastSeq = parseLastSeq(lastEventId)
-      const frames = service.attachTurn({ turnId, lastSeq })
-      if (!frames) {
-        return c.json({ error: 'Unknown turn' }, 404)
-      }
-      return streamTurnFrames(c, frames, { turnId })
+      return streamExistingTurn(c, service, {
+        agentId,
+        sessionId: MAIN_AGENT_SESSION_ID,
+      })
+    })
+    .get('/:agentId/sessions/:sessionId/chat/stream', (c) => {
+      const sessionId = parseSessionIdParam(c)
+      if ('error' in sessionId) return c.json({ error: sessionId.error }, 400)
+      return streamExistingTurn(c, service, {
+        agentId: c.req.param('agentId'),
+        sessionId: sessionId.value,
+      })
     })
     .post('/:agentId/chat/cancel', async (c) => {
       const agentId = c.req.param('agentId')
@@ -345,6 +364,26 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
           ? body.value.reason
           : undefined
       const cancelled = service.cancelTurn({ agentId, turnId, reason })
+      return c.json({ cancelled })
+    })
+    .post('/:agentId/sessions/:sessionId/chat/cancel', async (c) => {
+      const sessionId = parseSessionIdParam(c)
+      if ('error' in sessionId) return c.json({ error: sessionId.error }, 400)
+      const body = await readJsonBody(c)
+      const turnId =
+        'value' in body && typeof body.value.turnId === 'string'
+          ? body.value.turnId.trim() || undefined
+          : undefined
+      const reason =
+        'value' in body && typeof body.value.reason === 'string'
+          ? body.value.reason
+          : undefined
+      const cancelled = service.cancelTurn({
+        agentId: c.req.param('agentId'),
+        sessionId: sessionId.value,
+        turnId,
+        reason,
+      })
       return c.json({ cancelled })
     })
     .get('/:agentId/queue', async (c) => {
@@ -361,6 +400,24 @@ export function createAgentRoutes(deps: AgentRouteDeps = {}) {
       try {
         const queued = await service.enqueueMessage({
           agentId: c.req.param('agentId'),
+          sessionId: parsed.sessionId,
+          message: parsed.message,
+          attachments: parsed.attachments,
+        })
+        return c.json({ queued })
+      } catch (err) {
+        return handleAgentRouteError(c, err)
+      }
+    })
+    .post('/:agentId/sessions/:sessionId/queue', async (c) => {
+      const sessionId = parseSessionIdParam(c)
+      if ('error' in sessionId) return c.json({ error: sessionId.error }, 400)
+      const parsed = await parseEnqueueBody(c)
+      if ('error' in parsed) return c.json({ error: parsed.error }, 400)
+      try {
+        const queued = await service.enqueueMessage({
+          agentId: c.req.param('agentId'),
+          sessionId: sessionId.value,
           message: parsed.message,
           attachments: parsed.attachments,
         })
@@ -428,6 +485,101 @@ function turnFramesToAgentEvents(
   })
 }
 
+type ParsedChatBody = {
+  message: string
+  attachments: InboundImageAttachment[]
+  cwd?: string
+}
+
+async function startChatTurnResponse(
+  c: Context<Env>,
+  service: AgentRouteService,
+  input: {
+    agentId: string
+    sessionId: AgentSessionId
+    parsed: ParsedChatBody
+  },
+) {
+  let started: { turnId: string; frames: ReadableStream<TurnFrame> }
+  try {
+    started = await service.startTurn({
+      agentId: input.agentId,
+      sessionId: input.sessionId,
+      message: input.parsed.message,
+      attachments: input.parsed.attachments,
+      cwd: input.parsed.cwd,
+    })
+  } catch (err) {
+    if (err instanceof TurnAlreadyActiveError) {
+      return c.json(
+        {
+          error: 'Turn already active',
+          turnId: err.turnId,
+          attachUrl: buildChatStreamAttachUrl({
+            agentId: input.agentId,
+            sessionId: input.sessionId,
+            turnId: err.turnId,
+          }),
+        },
+        409,
+      )
+    }
+    return handleAgentRouteError(c, err)
+  }
+
+  return streamTurnFrames(c, started.frames, {
+    sessionId: input.sessionId,
+    turnId: started.turnId,
+  })
+}
+
+/**
+ * Builds the stream URL clients attach to after a 409, keeping the legacy
+ * main-session route while using scoped routes for sidepanel conversations.
+ */
+function buildChatStreamAttachUrl(input: {
+  agentId: string
+  sessionId: AgentSessionId
+  turnId: string
+}): string {
+  const agentId = encodeURIComponent(input.agentId)
+  const turnId = encodeURIComponent(input.turnId)
+  if (input.sessionId === MAIN_AGENT_SESSION_ID) {
+    return `/agents/${agentId}/chat/stream?turnId=${turnId}`
+  }
+  return `/agents/${agentId}/sessions/${encodeURIComponent(input.sessionId)}/chat/stream?turnId=${turnId}`
+}
+
+function streamExistingTurn(
+  c: Context<Env>,
+  service: AgentRouteService,
+  input: {
+    agentId: string
+    sessionId: AgentSessionId
+  },
+) {
+  const url = new URL(c.req.url)
+  const queryTurnId = url.searchParams.get('turnId')?.trim() || undefined
+  const turnId =
+    queryTurnId ?? service.getActiveTurn(input.agentId, input.sessionId)?.turnId
+  if (!turnId) {
+    return c.json({ error: 'No active turn for this agent session' }, 404)
+  }
+  const lastEventId =
+    c.req.header('Last-Event-ID') ??
+    url.searchParams.get('lastSeq') ??
+    undefined
+  const lastSeq = parseLastSeq(lastEventId)
+  const frames = service.attachTurn({ turnId, lastSeq })
+  if (!frames) {
+    return c.json({ error: 'Unknown turn' }, 404)
+  }
+  return streamTurnFrames(c, frames, {
+    sessionId: input.sessionId,
+    turnId,
+  })
+}
+
 /**
  * Pipe a TurnFrame stream as Server-Sent Events. Each frame becomes:
  *
@@ -441,11 +593,11 @@ function turnFramesToAgentEvents(
 function streamTurnFrames(
   c: Context<Env>,
   frames: ReadableStream<TurnFrame>,
-  options: { turnId: string },
+  options: { sessionId: AgentSessionId; turnId: string },
 ) {
   c.header('Content-Type', 'text/event-stream')
   c.header('Cache-Control', 'no-cache')
-  c.header('X-Session-Id', 'main')
+  c.header('X-Session-Id', options.sessionId)
   c.header('X-Turn-Id', options.turnId)
 
   return stream(c, async (s) => {
@@ -584,33 +736,45 @@ const ALLOWED_IMAGE_MEDIA_TYPES = new Set([
  * message text size so a runaway client can't fill the queue file
  * with multi-megabyte payloads.
  */
-async function parseEnqueueBody(
-  c: Context<Env>,
-): Promise<
-  { message: string; attachments: InboundImageAttachment[] } | { error: string }
+async function parseEnqueueBody(c: Context<Env>): Promise<
+  | {
+      sessionId?: AgentSessionId
+      message: string
+      attachments: InboundImageAttachment[]
+    }
+  | { error: string }
 > {
-  const parsed = await parseChatBody(c)
+  const body = await readJsonBody(c)
+  if ('error' in body) return body
+  const parsed = parseChatBodyRecord(body.value)
   if ('error' in parsed) return parsed
   if (parsed.message.length > AGENT_HARNESS_LIMITS.QUEUE_MESSAGE_MAX_BYTES) {
     return {
       error: `Message exceeds ${AGENT_HARNESS_LIMITS.QUEUE_MESSAGE_MAX_BYTES} bytes`,
     }
   }
-  return parsed
+  const sessionId = readOptionalTrimmedString(body.value, 'sessionId')
+  if (sessionId && !isAgentSessionId(sessionId)) {
+    return { error: 'sessionId must be "main" or a UUID' }
+  }
+  return { ...parsed, sessionId }
 }
 
 async function parseChatBody(
   c: Context<Env>,
-): Promise<
-  | { message: string; attachments: InboundImageAttachment[]; cwd?: string }
-  | { error: string }
-> {
+): Promise<ParsedChatBody | { error: string }> {
   const body = await readJsonBody(c)
   if ('error' in body) return body
+  return parseChatBodyRecord(body.value)
+}
+
+function parseChatBodyRecord(
+  record: Record<string, unknown>,
+): ParsedChatBody | { error: string } {
   const message =
-    typeof body.value.message === 'string' ? body.value.message.trim() : ''
-  const attachmentsRaw = Array.isArray(body.value.attachments)
-    ? body.value.attachments
+    typeof record.message === 'string' ? record.message.trim() : ''
+  const attachmentsRaw = Array.isArray(record.attachments)
+    ? record.attachments
     : []
   if (attachmentsRaw.length > MAX_CHAT_ATTACHMENTS) {
     return {
@@ -656,8 +820,8 @@ async function parseChatBody(
     message,
     attachments,
     cwd:
-      readOptionalTrimmedString(body.value, 'cwd') ??
-      readOptionalTrimmedString(body.value, 'userWorkingDir'),
+      readOptionalTrimmedString(record, 'cwd') ??
+      readOptionalTrimmedString(record, 'userWorkingDir'),
   }
 }
 
@@ -673,6 +837,12 @@ async function parseSidepanelAgentChatBody(
     return { error: 'conversationId must be a UUID' }
   }
 
+  const agentSessionId =
+    readOptionalTrimmedString(record, 'agentSessionId') ?? conversationId
+  if (!isAgentSessionId(agentSessionId)) {
+    return { error: 'agentSessionId must be "main" or a UUID' }
+  }
+
   const message = readOptionalTrimmedString(record, 'message')
   if (!message) return { error: 'Message is required' }
 
@@ -685,6 +855,7 @@ async function parseSidepanelAgentChatBody(
 
   return {
     conversationId,
+    agentSessionId,
     message,
     browserContext: browserContext.value,
     selectedText,
@@ -736,6 +907,19 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   )
+}
+
+function isAgentSessionId(value: string): value is AgentSessionId {
+  return value === MAIN_AGENT_SESSION_ID || isUuid(value)
+}
+
+function parseSessionIdParam(
+  c: Context<Env>,
+): { value: AgentSessionId } | { error: string } {
+  const sessionId = c.req.param('sessionId')
+  return isAgentSessionId(sessionId)
+    ? { value: sessionId }
+    : { error: 'sessionId must be "main" or a UUID' }
 }
 
 async function readJsonBody(

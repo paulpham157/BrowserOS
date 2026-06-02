@@ -18,7 +18,11 @@ import {
 } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import type { AgentDefinition } from '../agent-types'
+import {
+  type AgentDefinition,
+  type AgentSessionId,
+  MAIN_AGENT_SESSION_ID,
+} from '../agent-types'
 import {
   MEMORY_TEMPLATE,
   RUNTIME_SKILLS,
@@ -33,7 +37,10 @@ export interface AgentRuntimePaths {
   agentHome: string
   defaultWorkspaceCwd: string
   effectiveCwd: string
+  /** Agent-level latest activity pointer used for row summaries. */
   runtimeStatePath: string
+  /** Session-level latest pointer used for exact history/resume lookups. */
+  runtimeSessionStatePath: string
   runtimeSkillsDir: string
   runtimeRoot: string
   codexHome: string
@@ -43,10 +50,12 @@ export function resolveAgentRuntimePaths(input: {
   browserosDir: string
   agentId: string
   cwd?: string | null
+  sessionId?: AgentSessionId
 }): AgentRuntimePaths {
   const harnessDir = join(input.browserosDir, 'agents', 'harness')
   const defaultWorkspaceCwd = join(harnessDir, 'workspace')
   const runtimeRoot = join(harnessDir, input.agentId, 'runtime')
+  const sessionFile = `${encodeURIComponent(input.sessionId ?? MAIN_AGENT_SESSION_ID)}.json`
   return {
     browserosDir: input.browserosDir,
     harnessDir,
@@ -57,6 +66,12 @@ export function resolveAgentRuntimePaths(input: {
       harnessDir,
       'runtime-state',
       `${input.agentId}.json`,
+    ),
+    runtimeSessionStatePath: join(
+      harnessDir,
+      'runtime-state',
+      input.agentId,
+      sessionFile,
     ),
     runtimeSkillsDir: join(harnessDir, 'runtime-skills'),
     runtimeRoot,

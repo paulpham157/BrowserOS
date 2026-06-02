@@ -85,9 +85,12 @@ export const getResponseAndQueryFromMessageId = (
 }
 
 export type ChatOrigin = 'sidepanel' | 'newtab'
+export type AgentSessionStrategy = 'conversation' | 'main'
 
 export interface ChatSessionOptions {
   origin?: ChatOrigin
+  /** ACP agent session id source. Defaults to the conversation id. */
+  agentSessionStrategy?: AgentSessionStrategy
   /** When false, messages are queued until integrations finish syncing. */
   isIntegrationsSynced?: boolean
 }
@@ -350,9 +353,14 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           options?.origin,
           personalizationRef.current,
         )
+        const agentSessionStrategy =
+          options?.agentSessionStrategy ?? 'conversation'
+        const agentSessionId =
+          agentSessionStrategy === 'main' ? 'main' : conversationIdRef.current
 
         const commonRequest = {
           conversationId: conversationIdRef.current,
+          agentSessionId,
           mode: currentMode,
           browserContext: requestBrowserContext,
           userSystemPrompt,

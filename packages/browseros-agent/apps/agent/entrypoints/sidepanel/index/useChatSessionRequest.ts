@@ -18,6 +18,7 @@ interface BuildSidepanelPreparedSendMessagesRequestInput
   agentServerUrl: string
   target: SidepanelChatTarget | undefined
   fallbackProvider: LlmProviderConfig
+  agentSessionId?: string
   message?: string
 }
 
@@ -25,6 +26,7 @@ export function buildSidepanelPreparedSendMessagesRequest({
   agentServerUrl,
   target,
   fallbackProvider,
+  agentSessionId,
   message,
   ...common
 }: BuildSidepanelPreparedSendMessagesRequestInput) {
@@ -33,6 +35,7 @@ export function buildSidepanelPreparedSendMessagesRequest({
       api: `${agentServerUrl}/agents/${encodeURIComponent(target.agentId)}/sidepanel/chat`,
       body: {
         conversationId: common.conversationId,
+        agentSessionId: agentSessionId ?? common.conversationId,
         message: message ?? '',
         browserContext: common.browserContext,
         userSystemPrompt: common.userSystemPrompt,

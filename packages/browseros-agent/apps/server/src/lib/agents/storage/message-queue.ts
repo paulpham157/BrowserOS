@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path'
 import { AGENT_HARNESS_LIMITS } from '@browseros/shared/constants/limits'
 import { getBrowserosDir } from '../../browseros-dir'
 import { logger } from '../../logger'
+import type { AgentSessionId } from '../agent-types'
 
 export interface QueuedMessageAttachment {
   mediaType: string
@@ -19,6 +20,7 @@ export interface QueuedMessageAttachment {
 export interface QueuedMessage {
   id: string
   createdAt: number
+  sessionId?: AgentSessionId
   message: string
   attachments?: ReadonlyArray<QueuedMessageAttachment>
 }
@@ -80,6 +82,7 @@ export class FileMessageQueue {
   async append(
     agentId: string,
     input: {
+      sessionId?: AgentSessionId
       message: string
       attachments?: ReadonlyArray<QueuedMessageAttachment>
     },
@@ -93,6 +96,7 @@ export class FileMessageQueue {
       const queued: QueuedMessage = {
         id: randomUUID(),
         createdAt: Date.now(),
+        sessionId: input.sessionId,
         message: input.message,
         attachments: input.attachments,
       }

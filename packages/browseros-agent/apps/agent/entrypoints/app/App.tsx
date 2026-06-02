@@ -92,6 +92,10 @@ export const App: FC = () => {
                     path="agents/:agentId"
                     element={<AgentCommandConversation />}
                   />
+                  <Route
+                    path="agents/:agentId/sessions/:sessionId"
+                    element={<AgentCommandConversation />}
+                  />
                 </Route>
                 <Route path="chat" element={<NewTabChat />} />
                 <Route path="personalize" element={<Personalize />} />

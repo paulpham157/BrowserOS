@@ -2,8 +2,8 @@ import type { StagedAttachment } from '@/lib/attachments'
 
 /**
  * Same-tab in-memory handoff between the `/home` composer and the
- * chat screen at `/home/agents/:agentId`. URL search params (`?q=`)
- * carry the text fine, but cannot carry binary attachments — a multi-
+ * chat screen at `/home/agents/:agentId/sessions/:sessionId`. URL search
+ * params (`?q=`) carry the text fine, but cannot carry binary attachments — a multi-
  * megabyte image dataUrl would explode URL length limits and round-
  * trip badly. This module is the rich-data side channel for the same
  * navigation: the composer writes here, the chat screen reads here on
@@ -19,6 +19,7 @@ import type { StagedAttachment } from '@/lib/attachments'
 
 export interface PendingInitialMessage {
   agentId: string
+  sessionId: string
   text: string
   attachments: StagedAttachment[]
   createdAt: number
@@ -47,7 +48,7 @@ export function setPendingInitialMessage(payload: PendingInitialMessage): void {
   // Defensive: the home composer should never call this without an
   // agent selected. If it somehow does, no-op rather than holding a
   // payload we can't route.
-  if (!payload.agentId) return
+  if (!payload.agentId || !payload.sessionId) return
   clearPending()
   pending = payload
   pendingTimer = setTimeout(clearPending, PENDING_TTL_MS)
@@ -60,9 +61,11 @@ export function setPendingInitialMessage(payload: PendingInitialMessage): void {
  */
 export function consumePendingInitialMessage(
   agentId: string,
+  sessionId: string,
 ): PendingInitialMessage | null {
   if (!pending) return null
   if (pending.agentId !== agentId) return null
+  if (pending.sessionId !== sessionId) return null
   if (Date.now() - pending.createdAt >= PENDING_TTL_MS) {
     clearPending()
     return null
