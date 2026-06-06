@@ -86,13 +86,17 @@ func resolveDevTarget(root string, opts resetTargetOptions) (resetTarget, error)
 	if err != nil {
 		return resetTarget{}, err
 	}
+	devProfile, err := proc.DefaultDevUserDataDir(root)
+	if err != nil {
+		return resetTarget{}, err
+	}
 	return resetTarget{
 		Name:                targetDev,
 		Title:               "BrowserOS dev reset",
 		BrowserOSDir:        browserosDir,
 		LimaHome:            filepath.Join(browserosDir, "lima"),
 		Ports:               &ports,
-		BrowserUserDataDirs: []string{"/tmp/browseros-dev"},
+		BrowserUserDataDirs: []string{"/tmp/browseros-dev", devProfile},
 		TempPrefixes:        []string{"browseros-test-", "browseros-dev-"},
 		WatchRunStateDir:    filepath.Join(browserosDir, "runs"),
 		DeleteRootLabel:     "Delete dev profile?",

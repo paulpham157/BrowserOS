@@ -50,7 +50,10 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	}
 	p := defaultPorts
 	var reservations *proc.PortReservations
-	userDataDir := "/tmp/browseros-dev"
+	userDataDir, err := proc.DefaultDevUserDataDir(root)
+	if err != nil {
+		return err
+	}
 	mode := "watch"
 	if watchManual {
 		mode = "manual"
@@ -100,6 +103,13 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		proc.LogMsg(proc.TagInfo, "Ports cleared")
+		killedBrowsers, err := proc.KillBrowserProcessesForUserDataDirs([]string{userDataDir}, 3*time.Second)
+		if err != nil {
+			return err
+		}
+		if killedBrowsers > 0 {
+			proc.LogMsgf(proc.TagInfo, "Stopped %d BrowserOS process(es) for profile %s", killedBrowsers, userDataDir)
+		}
 
 		p, reservations, err = proc.ResolveWatchPorts(false)
 		if err != nil {

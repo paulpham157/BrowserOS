@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -55,6 +56,27 @@ func TestBrowserProfilePIDsFromPSSelectsOnlyDevAndTestProfiles(t *testing.T) {
 
 	if len(pids) != 3 || pids[0] != 111 || pids[1] != 222 || pids[2] != 333 {
 		t.Fatalf("expected dev/test browser pids, got %#v", pids)
+	}
+}
+
+func TestDefaultDevUserDataDirIsWorktreeScoped(t *testing.T) {
+	first := filepath.Join(t.TempDir(), "main-2", "packages", "browseros-agent")
+	second := filepath.Join(t.TempDir(), "feat-new-mcp", "packages", "browseros-agent")
+
+	firstProfile, err := DefaultDevUserDataDir(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondProfile, err := DefaultDevUserDataDir(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if firstProfile == secondProfile {
+		t.Fatalf("expected distinct profiles, got %s", firstProfile)
+	}
+	if !strings.Contains(firstProfile, "browseros-dev-main-2-") {
+		t.Fatalf("expected worktree label in %s", firstProfile)
 	}
 }
 

@@ -32,6 +32,9 @@ func TestResolveDevTargetReadsDevelopmentEnvPorts(t *testing.T) {
 	if target.BrowserOSDir != filepath.Join(home, ".browseros-dev") {
 		t.Fatalf("unexpected browseros dir: %s", target.BrowserOSDir)
 	}
+	if len(target.BrowserUserDataDirs) != 2 {
+		t.Fatalf("unexpected browser user data dirs: %#v", target.BrowserUserDataDirs)
+	}
 }
 
 func TestResolveDevTargetFallsBackToExampleEnvPorts(t *testing.T) {
