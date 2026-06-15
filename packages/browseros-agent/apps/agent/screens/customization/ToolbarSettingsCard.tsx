@@ -8,7 +8,6 @@ import { BROWSEROS_PREFS } from '@/lib/browseros/prefs'
 
 export const ToolbarSettingsCard: FC = () => {
   const [showLlmChat, setShowLlmChat] = useState(true)
-  const [showLlmHub, setShowLlmHub] = useState(false)
   const [showToolbarLabels, setShowToolbarLabels] = useState(true)
   const [verticalTabsEnabled, setVerticalTabsEnabled] = useState(true)
   const [supportsVerticalTabs, setSupportsVerticalTabs] = useState(false)
@@ -18,13 +17,11 @@ export const ToolbarSettingsCard: FC = () => {
     const loadPrefs = async () => {
       try {
         const adapter = getBrowserOSAdapter()
-        const [chatPref, hubPref, labelsPref] = await Promise.all([
+        const [chatPref, labelsPref] = await Promise.all([
           adapter.getPref(BROWSEROS_PREFS.SHOW_LLM_CHAT),
-          adapter.getPref(BROWSEROS_PREFS.SHOW_LLM_HUB),
           adapter.getPref(BROWSEROS_PREFS.SHOW_TOOLBAR_LABELS),
         ])
         setShowLlmChat(chatPref?.value !== false)
-        setShowLlmHub(hubPref?.value === true)
         setShowToolbarLabels(labelsPref?.value !== false)
 
         const hasVerticalTabsSupport = await Capabilities.supports(
@@ -88,25 +85,6 @@ export const ToolbarSettingsCard: FC = () => {
                 checked,
                 setShowLlmChat,
               )
-            }
-            disabled={isLoading}
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="show-llm-hub" className="font-medium text-sm">
-              Show Hub Button
-            </Label>
-            <p className="text-muted-foreground text-xs">
-              Display the Hub button in the browser toolbar
-            </p>
-          </div>
-          <Switch
-            id="show-llm-hub"
-            checked={showLlmHub}
-            onCheckedChange={(checked) =>
-              handleToggle(BROWSEROS_PREFS.SHOW_LLM_HUB, checked, setShowLlmHub)
             }
             disabled={isLoading}
           />
