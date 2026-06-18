@@ -3,7 +3,7 @@
  * Copyright 2025 BrowserOS
  */
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -44,13 +44,6 @@ mock.module('node:fs/promises', () => ({
   },
 }))
 
-mock.module('../../src/agent/acp-instructions', () => ({
-  ensureWorkspaceInstructionFile: async (opts: Record<string, unknown>) => {
-    lastInstructionArgs = opts
-    return { action: 'skipped-not-new-conversation' }
-  },
-}))
-
 mock.module('../../src/lib/browseros-dir', () => ({
   getBrowserosDir: () => join(homedir(), '.browseros-test'),
 }))
@@ -63,7 +56,12 @@ mock.module('../../src/lib/agents/acpx-provider/buildAcpxProvider', () => ({
 }))
 
 const mod = await import('../../src/agent/provider-factory')
-const { createLanguageModel } = mod
+const { createLanguageModel, setEnsureWorkspaceInstructionFileForTesting } = mod
+
+afterAll(() => {
+  setEnsureWorkspaceInstructionFileForTesting(null)
+  mock.restore()
+})
 
 function baseConfig(): Record<string, unknown> {
   return {
@@ -83,6 +81,10 @@ beforeEach(() => {
   omitRuntimeSetMode = false
   mkdirCalls.length = 0
   lastInstructionArgs = null
+  setEnsureWorkspaceInstructionFileForTesting(async (opts) => {
+    lastInstructionArgs = opts as unknown as Record<string, unknown>
+    return { action: 'skipped-not-new-conversation' }
+  })
 })
 
 describe('createLanguageModel — ACP providers', () => {
