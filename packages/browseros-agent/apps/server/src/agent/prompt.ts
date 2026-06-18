@@ -139,7 +139,8 @@ You control a Chromium browser through a compact tool surface:
 - \`grep\` → search snapshot/content without dumping the whole page
 - \`screenshot\` → visual capture
 - \`wait\` → wait for text, selector, or time
-- \`run\` → page-context JavaScript for small DOM/page-state scripts
+- \`evaluate\` → page-context JavaScript for small DOM/page-state scripts
+- \`run\` → server-runtime JavaScript against the browser SDK for multi-step flows
 
 ### External App Integrations (Strata)
 For connected apps, you can read and write data via direct API access (faster and more reliable than browser automation). See the External Integrations section for the full protocol.`

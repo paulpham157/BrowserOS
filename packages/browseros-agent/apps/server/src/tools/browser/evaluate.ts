@@ -7,8 +7,8 @@ const MAX_TIMEOUT_MS = 30_000
 
 const DESCRIPTION = `Evaluate JavaScript in a page context through CDP Runtime.evaluate. Use this for page-state reads or small DOM scripts that are awkward with read/grep. Return a value to read it back.`
 
-export const evalTool = defineTool({
-  name: 'eval',
+export const evaluate = defineTool({
+  name: 'evaluate',
   description: DESCRIPTION,
   input: z.object({
     page: z.number().int().describe('Page id from `tabs`.'),
@@ -40,7 +40,7 @@ export const evalTool = defineTool({
 
     if (result.exceptionDetails) {
       return errorResult(
-        `eval: ${
+        `evaluate: ${
           result.exceptionDetails.exception?.description ??
           result.exceptionDetails.text
         }`,

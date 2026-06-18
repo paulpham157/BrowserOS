@@ -8,7 +8,7 @@ const compactBrowserToolFiles = [
   'act.ts',
   'diff.ts',
   'download.ts',
-  'eval.ts',
+  'evaluate.ts',
   'framework.ts',
   'grep.ts',
   'navigate.ts',
@@ -23,6 +23,7 @@ const compactBrowserToolFiles = [
   'tab-groups.ts',
   'tabs.ts',
   'trust-boundary.ts',
+  'upload.ts',
   'wait.ts',
   'windows.ts',
 ]
