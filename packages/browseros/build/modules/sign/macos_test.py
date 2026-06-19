@@ -57,7 +57,7 @@ class MacOSSignDiscoveryTest(unittest.TestCase):
             self.assertIn(server_bin / "browseros_server", executables)
             self.assertIn(server_bin / "third_party" / "rg", executables)
             self.assertIn(server_bin / "third_party" / "codex", executables)
-            self.assertIn(server_bin / "third_party" / "claude", executables)
+            self.assertNotIn(server_bin / "third_party" / "claude", executables)
             self.assertNotIn(
                 server_bin / "third_party" / "lima" / "bin" / "limactl",
                 executables,
@@ -256,7 +256,7 @@ class SignComponentPerSliceTest(unittest.TestCase):
     can never satisfy (Apple notarization rejects it)."""
 
     def _make_component(self, tmp):
-        component = Path(tmp) / "claude"
+        component = Path(tmp) / "tool"
         component.write_bytes(b"original-fat")
         component.chmod(0o755)
         return component
@@ -276,7 +276,7 @@ class SignComponentPerSliceTest(unittest.TestCase):
                 ),
             ):
                 ok = sign_component(
-                    component, "Cert", "com.browseros.claude", "runtime"
+                    component, "Cert", "com.browseros.tool", "runtime"
                 )
 
             self.assertTrue(ok)
@@ -287,7 +287,7 @@ class SignComponentPerSliceTest(unittest.TestCase):
                 self.assertIn("--force", cmd)
                 self.assertIn("--timestamp", cmd)
                 self.assertIn("--identifier", cmd)
-                self.assertIn("com.browseros.claude", cmd)
+                self.assertIn("com.browseros.tool", cmd)
                 self.assertIn("--options", cmd)
                 self.assertIn("runtime", cmd)
             thin_calls = [c for c in calls if c[0] == "lipo" and "-thin" in c]
@@ -299,7 +299,7 @@ class SignComponentPerSliceTest(unittest.TestCase):
             self.assertEqual(component.read_bytes(), b"signed-fat")
             self.assertTrue(os.access(component, os.X_OK))
             self.assertEqual(
-                sorted(p.name for p in Path(tmp).iterdir()), ["claude"]
+                sorted(p.name for p in Path(tmp).iterdir()), ["tool"]
             )
 
     def test_symmetric_fat_uses_single_codesign(self):
@@ -388,7 +388,7 @@ class SignComponentPerSliceTest(unittest.TestCase):
             self.assertEqual(component.read_bytes(), b"original-fat")
             self.assertTrue(os.access(component, os.X_OK))
             self.assertEqual(
-                sorted(p.name for p in Path(tmp).iterdir()), ["claude"]
+                sorted(p.name for p in Path(tmp).iterdir()), ["tool"]
             )
 
 
@@ -399,7 +399,7 @@ class VerifySignatureComponentTest(unittest.TestCase):
 
     def _build_app(self, tmp):
         app_path = Path(tmp) / "BrowserOS.app"
-        claude = (
+        codex = (
             app_path
             / "Contents"
             / "Resources"
@@ -408,31 +408,31 @@ class VerifySignatureComponentTest(unittest.TestCase):
             / "resources"
             / "bin"
             / "third_party"
-            / "claude"
+            / "codex"
         )
-        _write_exec(claude)
-        return app_path, claude
+        _write_exec(codex)
+        return app_path, codex
 
     def test_fails_when_component_signature_invalid(self):
         with tempfile.TemporaryDirectory() as tmp:
-            app_path, claude = self._build_app(tmp)
+            app_path, codex = self._build_app(tmp)
             calls = []
 
             def run(cmd, cwd=None, check=True):
                 calls.append(cmd)
-                returncode = 1 if cmd[-1] == str(claude) else 0
+                returncode = 1 if cmd[-1] == str(codex) else 0
                 return _completed(cmd, returncode=returncode)
 
             with mock.patch.object(macos_module, "run_command", run):
                 self.assertFalse(verify_signature(app_path))
 
             self.assertTrue(
-                any(c[0] == "codesign" and c[-1] == str(claude) for c in calls)
+                any(c[0] == "codesign" and c[-1] == str(codex) for c in calls)
             )
 
     def test_passes_and_verifies_each_component(self):
         with tempfile.TemporaryDirectory() as tmp:
-            app_path, claude = self._build_app(tmp)
+            app_path, codex = self._build_app(tmp)
             calls = []
 
             with mock.patch.object(
@@ -442,7 +442,7 @@ class VerifySignatureComponentTest(unittest.TestCase):
 
             self.assertTrue(
                 any(
-                    c[0] == "codesign" and "--verify" in c and c[-1] == str(claude)
+                    c[0] == "codesign" and "--verify" in c and c[-1] == str(codex)
                     for c in calls
                 )
             )

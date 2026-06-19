@@ -21,7 +21,6 @@ var MacOSServerBinaries = map[string]SignSpec{
 	"browseros_server": {"browseros_server", "runtime", "browseros-executable-entitlements.plist"},
 	"bun":              {"bun", "runtime", "browseros-executable-entitlements.plist"},
 	"codex":            {"codex", "runtime", ""},
-	"claude":           {"claude", "runtime", ""},
 	"rg":               {"rg", "runtime", ""},
 }
 
@@ -29,7 +28,6 @@ var MacOSServerBinaries = map[string]SignSpec{
 var WindowsServerBinaries = []string{
 	"browseros_server.exe",
 	"third_party/codex.exe",
-	"third_party/claude.exe",
 }
 
 // MacOSSignSpecFor looks up sign metadata by file stem (e.g. "codex").

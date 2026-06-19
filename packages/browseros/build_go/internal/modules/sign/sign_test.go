@@ -111,14 +111,13 @@ func TestFindComponentsToSignDiscoversAllCategories(t *testing.T) {
 
 func TestIdentifierForComponent(t *testing.T) {
 	cases := map[string]string{
-		"/x/Sparkle.framework/Versions/B/Autoupdate":      "org.sparkle-project.Autoupdate",
-		"/x/Helpers/chrome_crashpad_handler":              "com.browseros.crashpad_handler",
-		"/x/Helpers/BrowserOS Helper (Renderer).app":      "com.browseros.helper.renderer",
-		"/x/Helpers/BrowserOS Helper (GPU).app":           "com.browseros.helper.gpu",
-		"/x/Frameworks/BrowserOS Framework.framework":     "com.browseros.framework",
-		"/x/Libraries/libEGL.dylib":                       "com.browseros.libEGL",
-		"/x/BrowserOSServer/default/resources/bin/codex":  "com.browseros.codex",
-		"/x/BrowserOSServer/default/resources/bin/claude": "com.browseros.claude",
+		"/x/Sparkle.framework/Versions/B/Autoupdate":     "org.sparkle-project.Autoupdate",
+		"/x/Helpers/chrome_crashpad_handler":             "com.browseros.crashpad_handler",
+		"/x/Helpers/BrowserOS Helper (Renderer).app":     "com.browseros.helper.renderer",
+		"/x/Helpers/BrowserOS Helper (GPU).app":          "com.browseros.helper.gpu",
+		"/x/Frameworks/BrowserOS Framework.framework":    "com.browseros.framework",
+		"/x/Libraries/libEGL.dylib":                      "com.browseros.libEGL",
+		"/x/BrowserOSServer/default/resources/bin/codex": "com.browseros.codex",
 	}
 	for path, want := range cases {
 		if got := IdentifierForComponent(path); got != want {
@@ -370,7 +369,9 @@ func TestWindowsSignValidateAndServerPaths(t *testing.T) {
 	}
 
 	paths := ServerBinaryPaths(ctx.OutDirAbs())
-	if len(paths) != 3 || !strings.HasSuffix(paths[0], "browseros_server.exe") {
+	if len(paths) != 2 ||
+		!strings.HasSuffix(paths[0], "browseros_server.exe") ||
+		!strings.HasSuffix(paths[1], "third_party/codex.exe") {
 		t.Errorf("server paths = %v", paths)
 	}
 	mac := MacOSSign{}
@@ -450,14 +451,14 @@ func sliceHandler(t *testing.T, plistArchs map[string]bool, codesignCode int, ma
 func TestSignComponentAsymmetricFatSignsPerSlice(t *testing.T) {
 	ctx, rec := fixtureCtx(t, macArm)
 	dir := t.TempDir()
-	component := filepath.Join(dir, "claude")
+	component := filepath.Join(dir, "tool")
 	writeFile(t, component, "original-fat")
 	if err := os.Chmod(component, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	rec.Handler = sliceHandler(t, map[string]bool{"arm64": true}, 0, true)
 
-	if err := signComponent(ctx, component, "Cert", "com.browseros.claude", "runtime", ""); err != nil {
+	if err := signComponent(ctx, component, "Cert", "com.browseros.tool", "runtime", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -479,7 +480,7 @@ func TestSignComponentAsymmetricFatSignsPerSlice(t *testing.T) {
 		if args[len(args)-1] == component {
 			t.Errorf("codesign ran on the fat file instead of a thin slice: %v", args)
 		}
-		for _, want := range []string{"--force", "--timestamp", "--identifier", "com.browseros.claude", "--options", "runtime"} {
+		for _, want := range []string{"--force", "--timestamp", "--identifier", "com.browseros.tool", "--options", "runtime"} {
 			if !hasArg(args, want) {
 				t.Errorf("codesign missing %q: %v", want, args)
 			}
@@ -526,7 +527,7 @@ func TestSignComponentSymmetricFatSingleCodesign(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx, rec := fixtureCtx(t, macArm)
 			dir := t.TempDir()
-			component := filepath.Join(dir, "claude")
+			component := filepath.Join(dir, "tool")
 			writeFile(t, component, "original-fat")
 			rec.Handler = sliceHandler(t, plistArchs, 0, true)
 
@@ -556,7 +557,7 @@ func TestSignComponentSymmetricFatSingleCodesign(t *testing.T) {
 func TestSignComponentThinSingleArchSingleCodesign(t *testing.T) {
 	ctx, rec := fixtureCtx(t, macArm)
 	dir := t.TempDir()
-	component := filepath.Join(dir, "claude")
+	component := filepath.Join(dir, "tool")
 	writeFile(t, component, "thin-binary")
 	rec.Handler = func(c execx.Cmd) (execx.Result, error) {
 		if c.Args[0] == "lipo" && c.Args[1] == "-archs" {
@@ -607,7 +608,7 @@ func TestSignComponentNonMachOSingleCodesign(t *testing.T) {
 func TestSignComponentPerSliceCodesignFailureKeepsOriginal(t *testing.T) {
 	ctx, rec := fixtureCtx(t, macArm)
 	dir := t.TempDir()
-	component := filepath.Join(dir, "claude")
+	component := filepath.Join(dir, "tool")
 	writeFile(t, component, "original-fat")
 	rec.Handler = sliceHandler(t, map[string]bool{"arm64": true}, 1, true)
 
@@ -627,39 +628,39 @@ func TestSignComponentPerSliceCodesignFailureKeepsOriginal(t *testing.T) {
 func TestVerifySignatureFailsOnInvalidComponent(t *testing.T) {
 	ctx, rec := fixtureCtx(t, macArm)
 	appPath := filepath.Join(t.TempDir(), "BrowserOS.app")
-	claude := filepath.Join(appPath, "Contents", "Resources", "BrowserOSServer",
-		"default", "resources", "bin", "third_party", "claude")
-	writeExec(t, claude)
+	codex := filepath.Join(appPath, "Contents", "Resources", "BrowserOSServer",
+		"default", "resources", "bin", "third_party", "codex")
+	writeExec(t, codex)
 
 	rec.Handler = func(c execx.Cmd) (execx.Result, error) {
-		if c.Args[0] == "codesign" && c.Args[len(c.Args)-1] == claude {
+		if c.Args[0] == "codesign" && c.Args[len(c.Args)-1] == codex {
 			return execx.Result{Code: 1}, nil
 		}
 		return execx.Result{}, nil
 	}
 	err := VerifySignature(ctx, appPath)
-	if err == nil || !strings.Contains(err.Error(), "claude") {
-		t.Fatalf("want component verification failure naming claude, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "codex") {
+		t.Fatalf("want component verification failure naming codex, got %v", err)
 	}
 }
 
 func TestVerifySignaturePassesAndChecksEachComponent(t *testing.T) {
 	ctx, rec := fixtureCtx(t, macArm)
 	appPath := filepath.Join(t.TempDir(), "BrowserOS.app")
-	claude := filepath.Join(appPath, "Contents", "Resources", "BrowserOSServer",
-		"default", "resources", "bin", "third_party", "claude")
-	writeExec(t, claude)
+	codex := filepath.Join(appPath, "Contents", "Resources", "BrowserOSServer",
+		"default", "resources", "bin", "third_party", "codex")
+	writeExec(t, codex)
 
 	if err := VerifySignature(ctx, appPath); err != nil {
 		t.Fatal(err)
 	}
 	found := false
 	for _, c := range rec.Cmds {
-		if c.Args[0] == "codesign" && hasArg(c.Args, "--verify") && c.Args[len(c.Args)-1] == claude {
+		if c.Args[0] == "codesign" && hasArg(c.Args, "--verify") && c.Args[len(c.Args)-1] == codex {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("claude was not verified: %v", rec.Argv())
+		t.Errorf("codex was not verified: %v", rec.Argv())
 	}
 }
