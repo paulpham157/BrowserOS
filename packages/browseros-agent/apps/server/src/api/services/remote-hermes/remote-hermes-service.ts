@@ -21,16 +21,19 @@
  * translation lives anywhere on the path.
  */
 
+import type { BrowserContext } from '@browseros/shared/schemas/browser-context'
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   type UIMessageStreamWriter,
 } from 'ai'
+import { formatUserMessage } from '../../../agent/format-message'
 import {
   COLD_START_BUDGET_MS,
   STATUS_POLL_INTERVAL_MS,
 } from '../../../lib/clients/remote-hermes/constants'
 import type {
+  PostTurnInput,
   RemoteHermesClient,
   VmStatusView,
 } from '../../../lib/clients/remote-hermes/remote-hermes-client'
@@ -48,6 +51,11 @@ export interface StreamTurnInput {
   conversationId: string
   message: string
   modelId?: string | null
+  /** Resolved by the route — pageIds already filled in via
+   *  resolveBrowserContextPageIds before the service is called. */
+  browserContext?: BrowserContext
+  selectedText?: string
+  selectedTextSource?: { url: string; title: string }
 }
 
 export class RemoteHermesService {
@@ -163,8 +171,13 @@ export class RemoteHermesService {
       if (!started) return null
     }
 
+    // Wrap the user message with the same browser-context block local
+    // chat injects, so the remote LLM has windowId/tab/pageId metadata
+    // and selected-text framing for tool routing.
+    const turnPayload = buildTurnPayload(input)
+
     // Phase 2: optimistic turn.
-    const first = await this.client.postTurn(input, signal)
+    const first = await this.client.postTurn(turnPayload, signal)
     if (first.ok) return readTaskId(first, writer)
 
     // Phase 3: drift recovery. If the worker proxy returned 503/409
@@ -181,7 +194,7 @@ export class RemoteHermesService {
       )
       const recovered = await this.ensureStarted('cold', writer, signal)
       if (!recovered) return null
-      const retry = await this.client.postTurn(input, signal)
+      const retry = await this.client.postTurn(turnPayload, signal)
       if (retry.ok) return readTaskId(retry, writer)
       writeUpstreamError(writer, await retry.text(), retry.status)
       writeBootStatus(writer, 'error')
@@ -416,6 +429,30 @@ function extractDataLine(record: string): string | null {
   }
   if (dataLines.length === 0) return null
   return dataLines.join('\n')
+}
+
+function buildTurnPayload(input: StreamTurnInput): PostTurnInput {
+  // Only wrap when there's real context to embed. Without this guard
+  // every remote-hermes turn would gain `<USER_QUERY>` framing
+  // post-upgrade, changing the wire format for conversations that
+  // don't attach tabs or selected text.
+  const hasContext =
+    Boolean(input.browserContext?.activeTab) ||
+    Boolean(input.browserContext?.selectedTabs?.length) ||
+    Boolean(input.selectedText)
+  const message = hasContext
+    ? formatUserMessage(
+        input.message,
+        input.browserContext,
+        input.selectedText,
+        input.selectedTextSource,
+      )
+    : input.message
+  return {
+    conversationId: input.conversationId,
+    message,
+    modelId: input.modelId,
+  }
 }
 
 async function readTaskId(
