@@ -24,11 +24,11 @@ func init() {
 			}
 			element, _ := cmd.Flags().GetInt("element")
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			toolArgs := map[string]any{
 				"page":      pageID,

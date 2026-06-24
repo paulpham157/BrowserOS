@@ -6,11 +6,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"browseros-cli/mcp"
 )
+
+var snapshotRefPattern = regexp.MustCompile(`\[ref=@?e([0-9]+)\]`)
 
 // elementRef normalizes legacy numeric element IDs to compact snapshot refs.
 func elementRef(raw string) (string, error) {
@@ -18,6 +21,7 @@ func elementRef(raw string) (string, error) {
 	if ref == "" {
 		return "", fmt.Errorf("empty element ref")
 	}
+	ref = strings.TrimPrefix(ref, "@")
 	if strings.HasPrefix(ref, "e") {
 		if _, err := strconv.Atoi(strings.TrimPrefix(ref, "e")); err != nil {
 			return "", fmt.Errorf("invalid element ref: %s", raw)
@@ -28,6 +32,10 @@ func elementRef(raw string) (string, error) {
 		return "", fmt.Errorf("invalid element ref: %s", raw)
 	}
 	return "e" + ref, nil
+}
+
+func displayElementRefs(text string) string {
+	return snapshotRefPattern.ReplaceAllString(text, `[ref=@e$1]`)
 }
 
 // browserRunValue runs compact-tool server JavaScript and returns its structured value.

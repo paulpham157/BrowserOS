@@ -25,11 +25,11 @@ func init() {
 				output.Errorf(3, "provide only one of --text or --selector")
 			}
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			toolArgs := map[string]any{
 				"page":    pageID,

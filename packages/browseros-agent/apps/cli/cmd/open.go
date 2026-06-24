@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
+	"browseros-cli/mcp"
 	"browseros-cli/output"
 
 	"github.com/spf13/cobra"
@@ -20,30 +22,24 @@ func init() {
 			windowID, _ := cmd.Flags().GetInt("window")
 
 			c := newClient()
-			var resultText string
-			var resultData map[string]any
 			var err error
-			var result any
+			var toolResult *mcp.ToolResult
 
 			if cmd.Flags().Changed("window") {
+				var result any
 				_, result, err = browserRunValue(c, openInWindowCode(args[0], hidden, bg, windowID))
 				if err == nil {
-					resultData, _ = valueMap(result)
-					resultText = fmt.Sprintf("opened page %d", numberValue(resultData["page"]))
+					resultData, _ := valueMap(result)
+					toolResult = textResult("", resultData)
 				}
 			} else {
-				toolResult, callErr := c.CallTool("tabs", openTabsToolArgs(args[0], hidden, bg))
-				err = callErr
-				if err == nil {
-					resultText = toolResult.TextContent()
-					resultData = toolResult.StructuredContent
-				}
+				toolResult, err = c.CallTool("tabs", openTabsToolArgs(args[0], hidden, bg))
 			}
 
 			if err != nil {
 				output.Error(err.Error(), 1)
 			}
-			resultForOutput := textResult(resultText, resultData)
+			resultForOutput := openResult(args[0], toolResult)
 			if jsonOut {
 				output.JSON(resultForOutput)
 			} else {
@@ -57,6 +53,39 @@ func init() {
 	cmd.Flags().Int("window", 0, "Window ID to open in")
 
 	rootCmd.AddCommand(cmd)
+}
+
+// openResult presents newly opened pages with a stable CLI page handle.
+func openResult(url string, result *mcp.ToolResult) *mcp.ToolResult {
+	data := map[string]any{}
+	if result != nil {
+		for key, value := range result.StructuredContent {
+			if key == "pageId" {
+				continue
+			}
+			data[key] = value
+		}
+		if numberValue(data["page"]) == 0 {
+			if pageID := numberValue(result.StructuredContent["pageId"]); pageID != 0 {
+				data["page"] = pageID
+			}
+		}
+	}
+	if url != "" {
+		data["url"] = url
+	}
+
+	lines := []string{}
+	if pageID := numberValue(data["page"]); pageID != 0 {
+		lines = append(lines, fmt.Sprintf("page=%d", pageID))
+	}
+	if url != "" {
+		lines = append(lines, "url="+url)
+	}
+	if len(lines) == 0 && result != nil {
+		lines = append(lines, result.TextContent())
+	}
+	return textResult(strings.Join(lines, "\n"), data)
 }
 
 func openTabsToolArgs(url string, hidden, background bool) map[string]any {

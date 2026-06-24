@@ -13,11 +13,11 @@ func init() {
 		Short:       "Show what changed on the page since the last snapshot or diff",
 		Args:        cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			result, err := c.CallTool("diff", diffToolArgs(pageID))
 			if err != nil {

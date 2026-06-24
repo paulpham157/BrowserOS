@@ -17,11 +17,11 @@ func init() {
 		Args:        cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			expression := strings.Join(args, " ")
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 			result, err := c.CallTool("evaluate", map[string]any{
 				"page": pageID,
 				"code": evalCode(expression),

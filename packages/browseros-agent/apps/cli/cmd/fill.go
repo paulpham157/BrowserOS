@@ -21,11 +21,11 @@ func init() {
 			}
 			value := strings.Join(args[1:], " ")
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			result, err := c.CallTool("act", fillToolArgsFromCommand(cmd, pageID, ref, value))
 			if err != nil {
@@ -48,22 +48,19 @@ func init() {
 		Run:         elementAction("fill", map[string]any{"value": "", "clear": true}),
 	}
 
-	keyCmd := &cobra.Command{
-		Use:         "key <key>",
+	pressCmd := &cobra.Command{
+		Use:         "press <key>",
+		Aliases:     []string{"key"},
 		Annotations: map[string]string{"group": "Input:"},
 		Short:       "Press a key or key combination (e.g., Enter, Control+A)",
 		Args:        cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
-			result, err := c.CallTool("act", map[string]any{
-				"page": pageID,
-				"kind": "press",
-				"key":  args[0],
-			})
+			c := newClient()
+			result, err := c.CallTool("act", pressToolArgs(pageID, args[0]))
 			if err != nil {
 				output.Error(err.Error(), 1)
 			}
@@ -75,7 +72,30 @@ func init() {
 		},
 	}
 
-	rootCmd.AddCommand(fillCmd, clearCmd, keyCmd)
+	typeCmd := &cobra.Command{
+		Use:         "type <text>",
+		Annotations: map[string]string{"group": "Input:"},
+		Short:       "Type text into the focused element",
+		Args:        cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			pageID, err := resolvePageID(nil)
+			if err != nil {
+				output.Error(err.Error(), 2)
+			}
+			c := newClient()
+			result, err := c.CallTool("act", typeToolArgs(pageID, strings.Join(args, " ")))
+			if err != nil {
+				output.Error(err.Error(), 1)
+			}
+			if jsonOut {
+				output.JSON(result)
+			} else {
+				output.Confirm(result.TextContent())
+			}
+		},
+	}
+
+	rootCmd.AddCommand(fillCmd, clearCmd, pressCmd, typeCmd)
 }
 
 // fillToolArgsFromCommand converts parsed fill flags into the compact act payload.
@@ -91,5 +111,21 @@ func fillToolArgs(pageID int, ref, value string, clear bool) map[string]any {
 		"ref":   ref,
 		"value": value,
 		"clear": clear,
+	}
+}
+
+func pressToolArgs(pageID int, key string) map[string]any {
+	return map[string]any{
+		"page": pageID,
+		"kind": "press",
+		"key":  key,
+	}
+}
+
+func typeToolArgs(pageID int, text string) map[string]any {
+	return map[string]any{
+		"page": pageID,
+		"kind": "type",
+		"text": text,
 	}
 }

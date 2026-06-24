@@ -15,11 +15,11 @@ func init() {
 		Short:       "Save the current page as PDF",
 		Args:        cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 			result, err := c.CallTool("pdf", pdfToolArgs(pageID))
 			if err != nil {
 				output.Error(err.Error(), 1)
@@ -55,11 +55,11 @@ func init() {
 				output.Error(err.Error(), 3)
 			}
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 			result, err := c.CallTool("download", downloadToolArgs(pageID, ref))
 			if err != nil {
 				output.Error(err.Error(), 1)

@@ -94,6 +94,43 @@ func TestCompactToolMappings(t *testing.T) {
 				"clear": false,
 			},
 		},
+		{
+			name: "press",
+			got:  pressToolArgs(7, "Enter"),
+			want: map[string]any{
+				"page": 7,
+				"kind": "press",
+				"key":  "Enter",
+			},
+		},
+		{
+			name: "type",
+			got:  typeToolArgs(7, "hello"),
+			want: map[string]any{
+				"page": 7,
+				"kind": "type",
+				"text": "hello",
+			},
+		},
+		{
+			name: "read markdown",
+			got:  readToolArgs(7, readOptions{format: "markdown", includeLinks: true}),
+			want: map[string]any{
+				"page":         7,
+				"format":       "markdown",
+				"includeLinks": true,
+			},
+		},
+		{
+			name: "grep content",
+			got:  grepToolArgs(7, "Example", "content", 5),
+			want: map[string]any{
+				"page":    7,
+				"pattern": "Example",
+				"over":    "content",
+				"limit":   5,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -105,11 +142,256 @@ func TestCompactToolMappings(t *testing.T) {
 	}
 }
 
-func TestTabsListResultKeepsLegacyShape(t *testing.T) {
+func TestElementRefAcceptsCopyPasteForms(t *testing.T) {
+	for _, raw := range []string{"@e12", "e12", "12"} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := elementRef(raw)
+			if err != nil {
+				t.Fatalf("elementRef(%q) error = %v", raw, err)
+			}
+			if got != "e12" {
+				t.Fatalf("elementRef(%q) = %q, want e12", raw, got)
+			}
+		})
+	}
+}
+
+func TestDisplayElementRefsPrefersAtRefs(t *testing.T) {
+	got := displayElementRefs("- button \"Buy\" [ref=e12]\n- input [ref=e3]")
+	want := "- button \"Buy\" [ref=@e12]\n- input [ref=@e3]"
+	if got != want {
+		t.Fatalf("displayElementRefs() = %q, want %q", got, want)
+	}
+}
+
+func TestFindMatchesTextAndBuildsClick(t *testing.T) {
+	lines := []string{
+		`- button "Add to Cart" [ref=e12]`,
+		`- button "Add to Cart" [ref=e13]`,
+	}
+	query := findQuery{mode: "text", text: "add to cart", nth: 1}
+
+	matches := findMatches(lines, query)
+	if len(matches) != 2 {
+		t.Fatalf("matches = %d, want 2", len(matches))
+	}
+	selected, err := selectFindMatch(matches, query)
+	if err != nil {
+		t.Fatalf("selectFindMatch() error = %v", err)
+	}
+	if selected.ref != "e12" {
+		t.Fatalf("selected ref = %q, want e12", selected.ref)
+	}
+
+	calls, err := findActionCalls(7, selected, findAction{kind: "click"})
+	if err != nil {
+		t.Fatalf("findActionCalls() error = %v", err)
+	}
+	want := []toolCall{{name: "act", args: map[string]any{"page": 7, "kind": "click", "ref": "e12"}}}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("calls = %#v, want %#v", calls, want)
+	}
+}
+
+func TestFindMatchesRoleNameNth(t *testing.T) {
+	lines := []string{
+		`- link "Add to Cart details" [ref=e4]`,
+		`- button "Add to Cart" [ref=e12]`,
+		`- button "Add to Cart" [ref=e13]`,
+	}
+	query := findQuery{mode: "role", role: "button", name: "Add to Cart", nth: 2}
+
+	selected, err := selectFindMatch(findMatches(lines, query), query)
+	if err != nil {
+		t.Fatalf("selectFindMatch() error = %v", err)
+	}
+	if selected.ref != "e13" {
+		t.Fatalf("selected ref = %q, want e13", selected.ref)
+	}
+}
+
+func TestFindNoMatchStopsBeforeAct(t *testing.T) {
+	query := findQuery{mode: "text", text: "missing", nth: 1}
+	if _, err := selectFindMatch(findMatches([]string{`- button "Buy" [ref=e1]`}, query), query); err == nil {
+		t.Fatal("selectFindMatch() error = nil, want no-match error")
+	}
+}
+
+func TestFindRejectsInvalidNth(t *testing.T) {
+	query := findQuery{mode: "text", text: "Buy", nth: -1}
+	if _, err := selectFindMatch([]findMatch{{ref: "e1", line: `- button "Buy" [ref=e1]`}}, query); err == nil {
+		t.Fatal("selectFindMatch() error = nil, want invalid nth error")
+	}
+}
+
+func TestFindGrepToolArgsUsesBoundedDefault(t *testing.T) {
+	got := findGrepToolArgs(7, findQuery{mode: "text", text: "Buy"})
+	want := map[string]any{
+		"page":    7,
+		"pattern": "Buy",
+		"over":    "ax",
+		"limit":   findDefaultGrepLimit,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("find grep args = %#v, want %#v", got, want)
+	}
+}
+
+func TestFindGrepToolArgsExpandsToNth(t *testing.T) {
+	got := findGrepToolArgs(7, findQuery{mode: "text", text: "Buy", nth: 150, limit: 10})
+	if got["limit"] != 150 {
+		t.Fatalf("limit = %v, want nth-sized search", got["limit"])
+	}
+}
+
+func TestFindActionCalls(t *testing.T) {
+	match := findMatch{ref: "e12", line: `- textbox "Search" [ref=e12]`}
+	tests := []struct {
+		name   string
+		action findAction
+		want   []toolCall
+	}{
+		{
+			name:   "fill",
+			action: findAction{kind: "fill", value: "hello"},
+			want: []toolCall{{name: "act", args: map[string]any{
+				"page":  7,
+				"kind":  "fill",
+				"ref":   "e12",
+				"value": "hello",
+				"clear": true,
+			}}},
+		},
+		{
+			name:   "type",
+			action: findAction{kind: "type", value: "hello"},
+			want: []toolCall{
+				{name: "act", args: map[string]any{"page": 7, "kind": "focus", "ref": "e12"}},
+				{name: "act", args: map[string]any{"page": 7, "kind": "type", "text": "hello"}},
+			},
+		},
+		{
+			name:   "select",
+			action: findAction{kind: "select", value: "Large"},
+			want: []toolCall{{name: "act", args: map[string]any{
+				"page":  7,
+				"kind":  "select",
+				"ref":   "e12",
+				"value": "Large",
+			}}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := findActionCalls(7, match, tt.action)
+			if err != nil {
+				t.Fatalf("findActionCalls() error = %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("calls = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFilterSnapshotInteractiveRows(t *testing.T) {
+	input := strings.Join([]string{
+		`- generic`,
+		`  - button "Buy" [ref=e1]`,
+		`  - link "Details" [ref=e2]`,
+		`  - paragraph "Copy"`,
+	}, "\n")
+
+	got := filterSnapshotText(input, snapshotFilterOptions{interactive: true})
+	want := strings.Join([]string{
+		`  - button "Buy" [ref=e1]`,
+		`  - link "Details" [ref=e2]`,
+	}, "\n")
+	if got != want {
+		t.Fatalf("filterSnapshotText() = %q, want %q", got, want)
+	}
+}
+
+func TestFilterSnapshotCompactAndDepth(t *testing.T) {
+	input := strings.Join([]string{
+		`- generic`,
+		`  - section`,
+		`    - paragraph "Visible copy"`,
+		`      - button "Too deep" [ref=e9]`,
+		`  - button "Buy" [ref=e1]`,
+	}, "\n")
+
+	got := filterSnapshotText(input, snapshotFilterOptions{compact: true, depth: 2})
+	want := strings.Join([]string{
+		`    - paragraph "Visible copy"`,
+		`  - button "Buy" [ref=e1]`,
+	}, "\n")
+	if got != want {
+		t.Fatalf("filterSnapshotText() = %q, want %q", got, want)
+	}
+}
+
+func TestSnapshotOutputResultReportsFiltersForJSON(t *testing.T) {
+	result := textResult(`- button "Buy" [ref=e1]`, map[string]any{
+		"page":     7,
+		"snapshot": `- button "Buy" [ref=e1]`,
+	})
+
+	got := snapshotOutputResult(result, 7, snapshotFilterOptions{interactive: true}, true)
+	if got.StructuredContent["page"] != 7 {
+		t.Fatalf("page = %v, want 7", got.StructuredContent["page"])
+	}
+	if got.StructuredContent["filteredSnapshot"] != `- button "Buy" [ref=@e1]` {
+		t.Fatalf("filteredSnapshot = %v", got.StructuredContent["filteredSnapshot"])
+	}
+	filters, ok := got.StructuredContent["filters"].(map[string]any)
+	if !ok || filters["interactive"] != true {
+		t.Fatalf("filters = %#v, want interactive metadata", got.StructuredContent["filters"])
+	}
+}
+
+func TestSnapshotOutputResultFiltersStructuredSnapshotAndPreservesPath(t *testing.T) {
+	result := textResult(strings.Join([]string{
+		`Large snapshot (20000 estimated tokens, 80000 chars) saved to: /tmp/browseros/snapshot.md`,
+		`Read the file for the full snapshot and refs.`,
+		`Showing the first 5000 estimated tokens inline:`,
+		`[UNTRUSTED_PAGE_CONTENT origin="https://example.com"]`,
+		`- generic`,
+		`[END_UNTRUSTED_PAGE_CONTENT]`,
+	}, "\n"), map[string]any{
+		"page":          7,
+		"path":          "/tmp/browseros/snapshot.md",
+		"writtenToFile": true,
+		"contentLength": 80000,
+		"tokenEstimate": 20000,
+		"snapshot":      strings.Join([]string{`[UNTRUSTED_PAGE_CONTENT origin="https://example.com"]`, `- generic`, `  - searchbox "Search" [ref=e5]`, `[END_UNTRUSTED_PAGE_CONTENT]`}, "\n"),
+	})
+
+	got := snapshotOutputResult(result, 7, snapshotFilterOptions{interactive: true}, true)
+	text := got.TextContent()
+	for _, want := range []string{
+		"Large snapshot saved to: /tmp/browseros/snapshot.md",
+		"Read the file for the full snapshot and refs.",
+		`- searchbox "Search" [ref=@e5]`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("filtered text missing %q in:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "- generic") {
+		t.Fatalf("filtered text kept non-interactive row:\n%s", text)
+	}
+	if got.StructuredContent["filteredSnapshot"] != strings.Join([]string{`[UNTRUSTED_PAGE_CONTENT origin="https://example.com"]`, `  - searchbox "Search" [ref=@e5]`, `[END_UNTRUSTED_PAGE_CONTENT]`}, "\n") {
+		t.Fatalf("filteredSnapshot = %#v", got.StructuredContent["filteredSnapshot"])
+	}
+}
+
+func TestTabsListResultUsesCanonicalPageField(t *testing.T) {
 	result := tabsListResult(&mcp.ToolResult{
 		StructuredContent: map[string]any{
 			"pages": []any{
-				map[string]any{"page": 42, "url": "https://example.com", "title": "Example"},
+				map[string]any{"pageId": 42, "url": "https://example.com", "title": "Example"},
 			},
 		},
 	})
@@ -125,8 +407,53 @@ func TestTabsListResultKeepsLegacyShape(t *testing.T) {
 	if !ok {
 		t.Fatalf("page = %#v, want map", pages[0])
 	}
-	if got := numberValue(page["pageId"]); got != 42 {
-		t.Fatalf("pageId = %d, want 42", got)
+	if _, exists := page["pageId"]; exists {
+		t.Fatalf("page includes legacy pageId: %#v", page)
+	}
+	if got := numberValue(page["page"]); got != 42 {
+		t.Fatalf("page = %d, want 42", got)
+	}
+}
+
+func TestOpenResultUsesCanonicalPageField(t *testing.T) {
+	result := openResult("https://example.com", &mcp.ToolResult{
+		Content: []mcp.ContentItem{{Type: "text", Text: "opened page 42"}},
+		StructuredContent: map[string]any{
+			"pageId": 42,
+		},
+	})
+
+	if _, exists := result.StructuredContent["pageId"]; exists {
+		t.Fatalf("open result includes legacy pageId: %#v", result.StructuredContent)
+	}
+	if got := numberValue(result.StructuredContent["page"]); got != 42 {
+		t.Fatalf("page = %d, want 42", got)
+	}
+	if got := result.TextContent(); got != "page=42\nurl=https://example.com" {
+		t.Fatalf("open text = %q, want stable page/url lines", got)
+	}
+}
+
+func TestActivePageResultUsesCanonicalPageField(t *testing.T) {
+	result := activePageResult(map[string]any{
+		"pageId":   42,
+		"tabId":    9,
+		"title":    "Example",
+		"url":      "https://example.com",
+		"isActive": true,
+	})
+
+	if _, exists := result.StructuredContent["pageId"]; exists {
+		t.Fatalf("active result includes legacy pageId: %#v", result.StructuredContent)
+	}
+	if nested, ok := result.StructuredContent["page"].(map[string]any); ok {
+		t.Fatalf("active result nested page object: %#v", nested)
+	}
+	if got := numberValue(result.StructuredContent["page"]); got != 42 {
+		t.Fatalf("page = %d, want 42", got)
+	}
+	if got := numberValue(result.StructuredContent["tabId"]); got != 9 {
+		t.Fatalf("tabId = %d, want 9", got)
 	}
 }
 

@@ -14,7 +14,8 @@ import (
 
 func init() {
 	cmd := &cobra.Command{
-		Use:         "ss",
+		Use:         "screenshot",
+		Aliases:     []string{"ss"},
 		Annotations: map[string]string{"group": "Observe:"},
 		Short:       "Take a screenshot",
 		Args:        cobra.NoArgs,
@@ -24,11 +25,11 @@ func init() {
 			format, _ := cmd.Flags().GetString("format")
 			quality, _ := cmd.Flags().GetInt("quality")
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			toolArgs, err := screenshotToolArgs(pageID, format, full, quality, cmd.Flags().Changed("quality"))
 			if err != nil {

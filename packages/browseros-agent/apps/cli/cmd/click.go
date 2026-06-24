@@ -35,11 +35,11 @@ func init() {
 				clickCount = 2
 			}
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			result, err := c.CallTool("act", clickToolArgs(pageID, ref, button, clickCount))
 			if err != nil {
@@ -71,11 +71,11 @@ func init() {
 				output.Errorf(3, "invalid y coordinate: %s", args[1])
 			}
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 
 			result, err := c.CallTool("act", clickAtToolArgs(pageID, x, y))
 			if err != nil {

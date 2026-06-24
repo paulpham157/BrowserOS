@@ -53,11 +53,11 @@ func init() {
 			}
 			value := strings.Join(args[1:], " ")
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 			result, err := c.CallTool("act", map[string]any{
 				"page":  pageID,
 				"kind":  "select",
@@ -91,11 +91,11 @@ func init() {
 				output.Error(err.Error(), 3)
 			}
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 			result, err := c.CallTool("act", map[string]any{
 				"page":      pageID,
 				"kind":      "drag",
@@ -126,11 +126,11 @@ func init() {
 				output.Error(err.Error(), 3)
 			}
 
-			c := newClient()
-			pageID, err := resolvePageID(c)
+			pageID, err := resolvePageID(nil)
 			if err != nil {
 				output.Error(err.Error(), 2)
 			}
+			c := newClient()
 			result, err := c.CallTool("upload", map[string]any{
 				"page":  pageID,
 				"ref":   ref,
@@ -157,11 +157,11 @@ func elementAction(kind string, extra map[string]any) func(*cobra.Command, []str
 			output.Error(err.Error(), 3)
 		}
 
-		c := newClient()
-		pageID, err := resolvePageID(c)
+		pageID, err := resolvePageID(nil)
 		if err != nil {
 			output.Error(err.Error(), 2)
 		}
+		c := newClient()
 
 		toolArgs := map[string]any{
 			"page": pageID,
