@@ -535,6 +535,13 @@ export function registerBrowserToolsForSingleServer(
                     session,
                     signal: extra?.signal,
                   })
+                  // The rrweb session replay recorder is no longer
+                  // injected from here. F8 moved recording to a
+                  // content script driven by the claw-app extension's
+                  // background worker, which polls /replay/tabs and
+                  // injects via chrome.scripting.executeScript only
+                  // into tabs the cockpit reports as agent-driven.
+                  // See plan: 2026-06-29-1450-...content-script.md
                 }
               }
             }

@@ -27,6 +27,7 @@ export function App() {
           <Route path="/mcp" element={<Mcp />} />
           <Route path="/audit" element={<Audit />} />
           <Route path="/audit/:sessionId" element={<TaskDetailPage />} />
+          <Route path="/audit/:sessionId/replay" element={<Replay />} />
           {legacyUi && (
             <>
               <Route path="/agents" element={<Agents />} />
@@ -48,10 +49,6 @@ export function App() {
         {legacyUi && (
           <>
             <Route path="/run/:runId" element={<LiveRun />} />
-            <Route
-              path="/governance/audit/:runId/replay"
-              element={<Replay />}
-            />
             <Route path="/onboarding" element={<Onboarding />} />
           </>
         )}

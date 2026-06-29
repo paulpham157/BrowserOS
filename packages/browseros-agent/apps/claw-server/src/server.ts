@@ -22,6 +22,8 @@ import { agentsControlRoute } from './routes/agents-control'
 import { auditRoute } from './routes/audit'
 import { auditScreenshotsRoute } from './routes/audit/screenshots'
 import { auditTasksRoute } from './routes/audit/tasks'
+import { auditReplayRoute } from './routes/audit-replay'
+import { replayTabsRoute } from './routes/audit-replay/tabs'
 import { connectionsRoute } from './routes/connections'
 import { mcpRoute } from './routes/mcp'
 import { mcpV2Route } from './routes/mcp-v2'
@@ -91,6 +93,8 @@ const routes = app
   .route('/', auditRoute)
   .route('/', auditTasksRoute)
   .route('/', auditScreenshotsRoute)
+  .route('/', auditReplayRoute)
+  .route('/', replayTabsRoute)
 
 export type AppType = typeof routes
 export default routes
