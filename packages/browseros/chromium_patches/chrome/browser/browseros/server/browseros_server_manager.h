@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/browseros/server/browseros_server_manager.h b/chrome/browser/browseros/server/browseros_server_manager.h
 new file mode 100644
-index 0000000000000..62e098b92b358
+index 0000000000000..2f7e3b2c7beff
 --- /dev/null
 +++ b/chrome/browser/browseros/server/browseros_server_manager.h
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,154 @@
 +// Copyright 2024 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -37,16 +37,11 @@ index 0000000000000..62e098b92b358
 +class ProcessController;
 +class ServerStateStore;
 +class ServerUpdater;
-+}
++}  // namespace browseros
 +
 +namespace browseros {
 +
-+// BrowserOS: Manages the lifecycle of the BrowserOS server process (singleton)
-+// This manager:
-+// 1. Starts Chromium's CDP WebSocket server
-+// 2. Binds a stable MCP proxy port that forwards /mcp to the sidecar
-+// 3. Launches the bundled BrowserOS server binary with ephemeral backend ports
-+// 4. Monitors server health via HTTP /health endpoint and auto-restarts
++// Manages the selected BrowserOS product server process.
 +class BrowserOSServerManager {
 + public:
 +  // Production singleton (uses real implementations)
@@ -116,8 +111,8 @@ index 0000000000000..62e098b92b358
 +  void OnProcessLaunched(LaunchResult result);
 +
 +  void TerminateBrowserOSProcess(base::OnceCallback<void()> callback);
-+  void OnTerminateHttpComplete(base::OnceCallback<void()> callback,
-+                               bool http_success);
++  void OnTerminateProcessComplete(base::OnceCallback<void()> callback,
++                                  bool killed);
 +
 +  void RestartBrowserOSProcess();
 +  void ContinueRestartAfterTerminate();

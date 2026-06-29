@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/browseros/server/browseros_server_config.h b/chrome/browser/browseros/server/browseros_server_config.h
 new file mode 100644
-index 0000000000000..3b121ed6f6635
+index 0000000000000..f41e7536e90a5
 --- /dev/null
 +++ b/chrome/browser/browseros/server/browseros_server_config.h
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,135 @@
 +// Copyright 2024 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -12,18 +12,50 @@ index 0000000000000..3b121ed6f6635
 +#define CHROME_BROWSER_BROWSEROS_SERVER_BROWSEROS_SERVER_CONFIG_H_
 +
 +#include <string>
++#include <string_view>
 +
 +#include "base/files/file_path.h"
++#include "base/values.h"
++#include "chrome/browser/browseros/core/browseros_product.h"
 +
 +namespace browseros {
++
++struct ServerLaunchConfig;
++
++enum class ServerConfigKind {
++  kBrowserOS,
++  kBrowserClaw,
++};
++
++struct ManagedServerDescriptor {
++  Product product;
++  std::string_view log_name;
++  base::FilePath::StringViewType bundle_dir;
++  base::FilePath::StringViewType binary_name;
++  base::FilePath::StringViewType config_file_name;
++  std::string_view health_path;
++  ServerConfigKind config_kind;
++  bool enable_updater;
++};
++
++const ManagedServerDescriptor& GetBrowserOSServerDescriptor();
++const ManagedServerDescriptor& GetBrowserClawServerDescriptor();
++
++// Returns the server descriptor selected by the build-time product identity.
++const ManagedServerDescriptor& GetManagedServerDescriptor();
++
++// Builds the JSON config expected by the selected server product.
++base::DictValue BuildServerConfigJson(
++    const ServerLaunchConfig& config,
++    const base::FilePath& actual_resources_dir);
 +
 +// Port assignments for all server endpoints.
 +// This is the single source of truth for port configuration.
 +struct ServerPorts {
 +  int cdp = 0;
-+  int server = 0;     // ephemeral backend port for sidecar (was "mcp")
++  int server = 0;  // ephemeral backend port for sidecar (was "mcp")
 +  int extension = 0;
-+  int proxy = 0;      // stable MCP proxy port bound by Chromium
++  int proxy = 0;  // stable MCP proxy port bound by Chromium
 +
 +  bool operator==(const ServerPorts&) const = default;
 +
@@ -79,6 +111,19 @@ index 0000000000000..3b121ed6f6635
 +// Complete configuration for a single server launch.
 +// Assembled fresh before each ProcessController::Launch() call.
 +struct ServerLaunchConfig {
++  ServerLaunchConfig();
++  ServerLaunchConfig(const ServerLaunchConfig&);
++  ServerLaunchConfig& operator=(const ServerLaunchConfig&);
++  ServerLaunchConfig(ServerLaunchConfig&&);
++  ServerLaunchConfig& operator=(ServerLaunchConfig&&);
++  ~ServerLaunchConfig();
++
++  std::string log_name;
++  base::FilePath::StringType config_file_name;
++  std::string health_path;
++  ServerConfigKind config_kind = ServerConfigKind::kBrowserOS;
++  bool enable_updater = true;
++
 +  ServerPorts ports;
 +  ServerPaths paths;
 +  ServerIdentity identity;
