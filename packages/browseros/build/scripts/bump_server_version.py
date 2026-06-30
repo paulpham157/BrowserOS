@@ -10,7 +10,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
 # Anchor on the workspace package's own name so the single version line that follows
 # is matched in BOTH package.json and bun.lock; \s* spans the newline + indentation.
@@ -46,7 +46,7 @@ def _next_patch(version: str) -> str:
     return f"{major}.{minor}.{patch + 1}"
 
 
-def bump_server_version(agent_root: Path, set_version: str | None = None) -> str:
+def bump_server_version(agent_root: Path, set_version: Optional[str] = None) -> str:
     """Set (or patch-bump) the server version in package.json + bun.lock; return it."""
     package_json = agent_root / "apps" / "server" / "package.json"
     bun_lock = agent_root / "bun.lock"
@@ -62,7 +62,7 @@ def bump_server_version(agent_root: Path, set_version: str | None = None) -> str
     return new_version
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     """CLI for GitHub Actions: bump (or --set) the server version and print it."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--set", dest="set_version", default=None)

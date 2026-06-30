@@ -36,7 +36,7 @@ const UNNEEDED_SERVER_AND_R2_ENV_KEYS = [
 
 describe('claw server build', () => {
   const rootDir = resolve(import.meta.dir, '../../..')
-  const clawPkgPath = resolve(rootDir, 'apps/claw-server/package.json')
+  const versionPkgPath = resolve(rootDir, 'apps/server/package.json')
   const buildScript = resolve(rootDir, 'scripts/build/claw-server.ts')
   const target = getNativeTarget()
   const binaryPath = resolve(
@@ -94,7 +94,7 @@ describe('claw server build', () => {
 
   it('builds a local artifact without apps/server env files', async () => {
     rmSync(zipPath, { force: true })
-    const pkg = await Bun.file(clawPkgPath).json()
+    const pkg = await Bun.file(versionPkgPath).json()
     const expectedVersion: string = pkg.version
 
     const build = Bun.spawn(

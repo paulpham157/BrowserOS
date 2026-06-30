@@ -9,7 +9,11 @@ function readPackageVersion(
   rootDir: string,
   product: BuildProductDescriptor,
 ): string {
-  const pkgPath = join(rootDir, product.packageDir, 'package.json')
+  const pkgPath = join(
+    rootDir,
+    product.versionPackageDir ?? product.packageDir,
+    'package.json',
+  )
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
   return pkg.version
 }
