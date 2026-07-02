@@ -129,7 +129,7 @@ class GetAppPathTest(unittest.TestCase):
             ],
         )
 
-    def test_release_gn_args_bake_product_identity(self):
+    def test_release_gn_args_select_product_for_baked_identity(self):
         for product in ("browseros", "browserclaw"):
             with self.subTest(product=product):
                 ctx = Context(

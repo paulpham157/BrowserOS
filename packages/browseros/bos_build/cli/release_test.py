@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CLI surface tests for the release subcommands."""
 
+import re
 import unittest
 from unittest import mock
 
@@ -10,6 +11,7 @@ from bos_build.browseros import app
 from bos_build.cli import release as release_cli
 
 runner = CliRunner()
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def invoke(*args: str):
@@ -24,6 +26,10 @@ def combined(result) -> str:
     except (ValueError, AttributeError):
         pass
     return out
+
+
+def plain_output(result) -> str:
+    return ANSI_RE.sub("", combined(result))
 
 
 class ReleaseHelpTest(unittest.TestCase):
@@ -52,8 +58,9 @@ class ReleaseHelpTest(unittest.TestCase):
         result = invoke("list", "--help")
 
         self.assertEqual(result.exit_code, 0, combined(result))
+        help_text = plain_output(result)
         for token in ("--product", "--limit", "--all", "--version", "VERSION"):
-            self.assertIn(token, result.output)
+            self.assertIn(token, help_text)
 
 
 class ReleaseListInvocationTest(unittest.TestCase):

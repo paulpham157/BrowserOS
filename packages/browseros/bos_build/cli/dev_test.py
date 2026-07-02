@@ -2,6 +2,7 @@
 """CLI surface tests for the dev subcommands."""
 
 import json
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -13,6 +14,7 @@ from bos_build.browseros import app
 from bos_build.patchkit.doctor import ApplyFailure, ApplyReport, Finding
 
 runner = CliRunner()
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def invoke(*args: str):
@@ -29,6 +31,10 @@ def combined(result) -> str:
     return out
 
 
+def plain_output(result) -> str:
+    return ANSI_RE.sub("", combined(result))
+
+
 class DevHelpTest(unittest.TestCase):
     def test_dev_help_lists_extract_and_doctor(self):
         result = invoke("--help")
@@ -43,9 +49,10 @@ class DoctorCliTest(unittest.TestCase):
         result = invoke("doctor", "--help")
 
         self.assertEqual(result.exit_code, 0, combined(result))
+        help_text = plain_output(result)
         for flag in ("--against", "--feature", "--json"):
-            self.assertIn(flag, result.output)
-        self.assertIn("read-only", result.output.lower())
+            self.assertIn(flag, help_text)
+        self.assertIn("read-only", help_text.lower())
 
     def test_json_report_has_stable_shape_and_matching_exit_code(self):
         result = invoke("doctor", "--json")

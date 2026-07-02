@@ -6,6 +6,7 @@ passing projection test proves the path never needs a chromium checkout.
 """
 
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,7 @@ from bos_build.lib.testing import MockChromium
 from bos_build.lib.utils import get_platform, get_platform_arch
 
 runner = CliRunner()
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def invoke(*args: str):
@@ -34,6 +36,10 @@ def combined(result) -> str:
     except (ValueError, AttributeError):
         pass
     return out
+
+
+def plain_output(result) -> str:
+    return ANSI_RE.sub("", combined(result))
 
 
 def scrubbed_env(*extra: str):
@@ -293,8 +299,9 @@ class GnArgOptionTest(_ProfileMixin):
     def test_help_documents_repeatable(self):
         result = invoke("--help")
         self.assertEqual(result.exit_code, 0, combined(result))
-        self.assertIn("--gn-arg", result.output)
-        self.assertIn("repeatable", result.output)
+        help_text = plain_output(result)
+        self.assertIn("--gn-arg", help_text)
+        self.assertIn("repeatable", help_text)
 
     def test_preset_show_plan_lists_overrides(self):
         with scrubbed_env():

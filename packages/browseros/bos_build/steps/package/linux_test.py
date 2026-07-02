@@ -145,7 +145,7 @@ class CopyBrowserFilesTest(unittest.TestCase):
 
 
 class LinuxProductMetadataTest(unittest.TestCase):
-    def test_browserclaw_helpers_use_product_identity(self) -> None:
+    def test_browserclaw_helpers_use_product_package_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             ctx = cast(
