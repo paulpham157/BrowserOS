@@ -15,6 +15,7 @@ from .resources.chromium_replace import ChromiumReplaceModule
 from .resources.string_replaces import StringReplacesModule
 from .patches.series_patches import SeriesPatchesModule
 from .patches.patches import PatchesModule
+from .patches.product_identity import ProductIdentityModule
 from .setup.configure import ConfigureModule
 from .compile.standard import CompileModule
 from .compile.universal import MergeUniversalModule
@@ -41,6 +42,7 @@ __all__ = [
     "StringReplacesModule",
     "SeriesPatchesModule",
     "PatchesModule",
+    "ProductIdentityModule",
     "ConfigureModule",
     "CompileModule",
     "MergeUniversalModule",

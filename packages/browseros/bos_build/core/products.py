@@ -8,6 +8,7 @@ overrides for genuine deviations. Product instances live in
 bos_build/products/<id>/product.py — one file answers "what is X".
 """
 
+import re
 from dataclasses import dataclass, fields
 from typing import Any, Dict, Optional, Tuple
 
@@ -34,6 +35,9 @@ class MacProductIdentity:
     framework_name: str
     dev_framework_name: str
     dmg_volume_name: str
+    # CrProductDirName: profile root under ~/Library/Application Support.
+    # Changing it orphans every existing install's profile.
+    product_dir_name: str
 
 
 @dataclass(frozen=True)
@@ -46,12 +50,18 @@ class LinuxProductIdentity:
     appimage_dir: str
     apparmor_profile_name: str
     metainfo_id: str
+    # data_dir_basename in chrome_paths_linux.cc: profile root under
+    # ~/.config. Changing it orphans every existing install's profile.
+    user_data_dir_name: str
 
 
 @dataclass(frozen=True)
 class WindowsProductIdentity:
     app_user_model_id: str
     installer_app_id: str
+    # install_static kProductPathName: user-data root under
+    # %LOCALAPPDATA%. Changing it orphans every existing install's profile.
+    product_path_name: str
 
 
 @dataclass(frozen=True)
@@ -177,6 +187,7 @@ class ProductDescriptor:
                 framework_name=f"{display_name} Framework.framework",
                 dev_framework_name=f"{display_name} Dev Framework.framework",
                 dmg_volume_name=display_name,
+                product_dir_name=base,
             ),
             linux=LinuxProductIdentity(
                 package_name=id,
@@ -187,10 +198,12 @@ class ProductDescriptor:
                 appimage_dir=f"/opt/{id}",
                 apparmor_profile_name=id,
                 metainfo_id=f"{id}.desktop",
+                user_data_dir_name=_kebab_case(base),
             ),
             windows=WindowsProductIdentity(
                 app_user_model_id=f"{company}.{base}",
                 installer_app_id=windows_installer_guid,
+                product_path_name=base,
             ),
         )
 
@@ -203,6 +216,11 @@ class ProductDescriptor:
             )
         derived.update(overrides)
         return cls(**derived)
+
+
+def _kebab_case(name: str) -> str:
+    """CamelCase → kebab-case ("BrowserOS" → "browser-os")."""
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name).lower()
 
 
 def _replacements(product_name: str) -> tuple[tuple[str, str], ...]:

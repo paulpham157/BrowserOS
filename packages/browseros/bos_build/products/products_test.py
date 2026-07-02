@@ -52,6 +52,7 @@ ORIGINAL_BROWSEROS = ProductDescriptor(
         framework_name="BrowserOS Framework.framework",
         dev_framework_name="BrowserOS Dev Framework.framework",
         dmg_volume_name="BrowserOS",
+        product_dir_name="BrowserOS",
     ),
     linux=LinuxProductIdentity(
         package_name="browseros",
@@ -62,10 +63,12 @@ ORIGINAL_BROWSEROS = ProductDescriptor(
         appimage_dir="/opt/browseros",
         apparmor_profile_name="browseros",
         metainfo_id="browseros.desktop",
+        user_data_dir_name="browser-os",
     ),
     windows=WindowsProductIdentity(
         app_user_model_id="BrowserOS.BrowserOS",
         installer_app_id="{5d8d08af-2df9-4da2-86c1-eac353a0ca32}",
+        product_path_name="BrowserOS",
     ),
 )
 
@@ -101,6 +104,7 @@ ORIGINAL_BROWSERCLAW = ProductDescriptor(
         framework_name="BrowserClaw Framework.framework",
         dev_framework_name="BrowserClaw Dev Framework.framework",
         dmg_volume_name="BrowserClaw",
+        product_dir_name="BrowserClaw",
     ),
     linux=LinuxProductIdentity(
         package_name="browserclaw",
@@ -111,10 +115,12 @@ ORIGINAL_BROWSERCLAW = ProductDescriptor(
         appimage_dir="/opt/browserclaw",
         apparmor_profile_name="browserclaw",
         metainfo_id="browserclaw.desktop",
+        user_data_dir_name="browser-claw",
     ),
     windows=WindowsProductIdentity(
         app_user_model_id="BrowserOS.BrowserClaw",
         installer_app_id="{FA2AFFF8-647B-477C-A5D2-905BA8DB9B82}",
+        product_path_name="BrowserClaw",
     ),
 )
 
@@ -148,6 +154,9 @@ class DefineBehaviorTest(unittest.TestCase):
         self.assertEqual(p.windows.app_user_model_id, "BrowserOS.AcmeFox")
         self.assertEqual(p.server_bundle_ids, ("acmefox-server",))
         self.assertEqual(p.release_prefix, "acmefox")
+        self.assertEqual(p.mac.product_dir_name, "AcmeFox")
+        self.assertEqual(p.linux.user_data_dir_name, "acme-fox")
+        self.assertEqual(p.windows.product_path_name, "AcmeFox")
 
     def test_override_wins_over_derivation(self):
         p = self._minimal(artifact_prefix="Acme")
@@ -157,6 +166,24 @@ class DefineBehaviorTest(unittest.TestCase):
     def test_unknown_override_raises(self):
         with self.assertRaisesRegex(TypeError, "Unknown ProductDescriptor override"):
             self._minimal(dmg_name="X")
+
+
+class UserDataIsolationTest(unittest.TestCase):
+    """The two products must never share a user-data directory identity —
+    a shared value recreates the SingletonLock collision this models."""
+
+    def test_products_have_disjoint_user_data_identities(self):
+        browseros = get_product_descriptor("browseros")
+        browserclaw = get_product_descriptor("browserclaw")
+        self.assertNotEqual(
+            browseros.mac.product_dir_name, browserclaw.mac.product_dir_name
+        )
+        self.assertNotEqual(
+            browseros.linux.user_data_dir_name, browserclaw.linux.user_data_dir_name
+        )
+        self.assertNotEqual(
+            browseros.windows.product_path_name, browserclaw.windows.product_path_name
+        )
 
 
 class RegistryTest(unittest.TestCase):

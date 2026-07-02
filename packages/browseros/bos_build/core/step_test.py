@@ -32,6 +32,7 @@ class RegistryContentTest(unittest.TestCase):
                 "string_replaces",
                 "series_patches",
                 "patches",
+                "product_identity",
                 "configure",
                 "compile",
                 "merge_universal",
@@ -60,6 +61,7 @@ class RegistryContentTest(unittest.TestCase):
                 "chromium_replace",
                 "string_replaces",
                 "patches",
+                "product_identity",
                 "configure",
             ],
         )

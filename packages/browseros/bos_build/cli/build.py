@@ -94,7 +94,7 @@ def main(
     prep: bool = typer.Option(
         False,
         "--prep",
-        help="Run prep phase (resources, chromium_replace, string_replaces, patches, configure)",
+        help="Run prep phase (resources, chromium_replace, string_replaces, patches, product_identity, configure)",
     ),
     build: bool = typer.Option(
         False,
