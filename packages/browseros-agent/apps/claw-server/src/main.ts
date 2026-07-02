@@ -88,8 +88,13 @@ async function start(): Promise<void> {
   }
 
   // Sweep stored profiles so their harness install and mcpUrl match
-  // the standalone server's current loopback URL.
-  const buildMcpUrlForMigration = (slug: string): string => `${url}/mcp/${slug}`
+  // the public MCP URL. In BrowserOS-managed launches this is the
+  // proxy port, not the backend server bind URL.
+  const publicMcpBaseUrl = env.proxyPort
+    ? `http://127.0.0.1:${env.proxyPort}`
+    : url
+  const buildMcpUrlForMigration = (slug: string): string =>
+    `${publicMcpBaseUrl}/mcp/${slug}`
   void migrateMcpUrls(buildMcpUrlForMigration)
     .then((result) =>
       logger.info('mcpUrl migration finished', {
