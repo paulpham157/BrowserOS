@@ -101,6 +101,7 @@ export function loadBuildConfig(
       envVars[key] ??= value
     }
   }
+  Object.assign(envVars, product.env.inlineEnvOverrides ?? {})
   if (!options.ci) {
     validateProductionEnv(product, envVars)
   }

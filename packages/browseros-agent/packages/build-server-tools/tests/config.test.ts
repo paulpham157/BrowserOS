@@ -86,6 +86,26 @@ describe('build config', () => {
     expect(config.r2?.uploadPrefix).toBe('process-prefix')
   })
 
+  it('applies product inline env overrides after file and process env', async () => {
+    const rootDir = await writeProdRoot({
+      ...REQUIRED_INLINE_ENV,
+      LOG_LEVEL: 'debug',
+    })
+    process.env.LOG_LEVEL = 'warn'
+    const product = testProduct({
+      env: {
+        ...testProduct().env,
+        inlineEnvOverrides: {
+          LOG_LEVEL: 'info',
+        },
+      },
+    })
+
+    const config = loadBuildConfig(rootDir, product)
+
+    expect(config.envVars.LOG_LEVEL).toBe('info')
+  })
+
   it('does not require a production env file in CI mode', async () => {
     const rootDir = await writeProdRoot({}, { envFile: false })
 
