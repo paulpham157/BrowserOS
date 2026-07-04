@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import type { ReplayEvent, ReplayFrame } from '@/modules/api/replay.hooks'
+import { buildReplayEventTabs } from './replay-events'
 import { type BuildTabViewInput, buildTabView } from './tab-view'
 
 function frame(
@@ -70,9 +71,6 @@ describe('buildTabView', () => {
   })
 
   it('shifts frame `t` to be tab-relative (first frame at t=0)', () => {
-    // Session started at 1_000_000 ms; frame at t=5 means the tab's
-    // first activity is 5 seconds into the session. In tab-relative
-    // time that first frame is at t=0.
     const v = buildTabView(
       makeInput({
         frames: [frame(5, 7), frame(8, 7), frame(12, 7)],
@@ -91,7 +89,6 @@ describe('buildTabView', () => {
       }),
       1,
     )
-    // 7500 - 3000 = 4500 ms = 4.5s
     expect(v.totalSeconds).toBeCloseTo(4.5)
   })
 
@@ -103,7 +100,6 @@ describe('buildTabView', () => {
       }),
       9,
     )
-    // 10 - 2 = 8 seconds
     expect(v.totalSeconds).toBe(8)
     expect(v.frames.map((f) => f.t)).toEqual([0, 8])
   })
@@ -119,5 +115,30 @@ describe('buildTabView', () => {
     expect(v.frames[0]?.url).toBe('https://example.com')
     expect(v.frames[0]?.pageId).toBe(3)
     expect(v.frames[0]?.t).toBe(0)
+  })
+
+  it('keeps a tab events array stable across task-only data changes', () => {
+    const eventTabs = buildReplayEventTabs([
+      event(1_002_000, 3),
+      event(1_003_000, 3),
+      event(1_004_000, 8),
+    ])
+    const first = buildTabView(
+      makeInput({
+        frames: [frame(2, 3)],
+        eventsForTab: eventTabs.eventsForTab,
+      }),
+      3,
+    )
+    const afterTaskPoll = buildTabView(
+      makeInput({
+        frames: [frame(2, 3), frame(4, 3)],
+        eventsForTab: eventTabs.eventsForTab,
+      }),
+      3,
+    )
+
+    expect(afterTaskPoll.events).toBe(first.events)
+    expect(afterTaskPoll.frames).not.toBe(first.frames)
   })
 })

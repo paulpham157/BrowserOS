@@ -2,21 +2,6 @@
  * @license
  * Copyright 2025 BrowserOS
  * SPDX-License-Identifier: AGPL-3.0-or-later
- *
- * Replay viewport for the audit page. The original scaffold drew a
- * fake browser chrome with a tinted page region and a caption pill.
- * This version mounts rrweb-player inside that chrome so the actual
- * recorded DOM mutations play back. Tab selection lives at the
- * page level (see `Replay.tsx`) as a prominent shadcn Tabs bar; the
- * viewport itself just renders the currently-selected tab's events.
- *
- * The player's built-in controller is hidden via `showController:
- * false`; PlaybackTransport (see use-playback wiring) is the single
- * source of UI truth. Time sync between this player and the
- * scaffold's `usePlayback` clock is set up imperatively via the
- * `onPlayerReady` callback so the page-level component can drive
- * the player from the same scrub events the timeline already
- * dispatches.
  */
 
 import { Lock } from 'lucide-react'
@@ -38,9 +23,11 @@ import 'rrweb-player/dist/style.css'
 import { Replayer } from 'rrweb'
 
 export interface ReplayPlayerHandle {
-  goto(ms: number): void
-  play(): void
+  seek(ms: number): void
+  play(ms: number): void
   pause(): void
+  setSpeed(speed: number): void
+  getCurrentTime(): number
 }
 
 interface ReplayViewportProps {
@@ -48,11 +35,12 @@ interface ReplayViewportProps {
   /** The frame whose caption is currently displayed in the overlay. */
   frame: ReplayFrame | undefined
   /** rrweb events for the currently-selected tabPageId. */
-  events: ReplayEvent[]
-  /** Called once the rrweb-player has mounted with usable controls. */
-  onPlayerReady: (handle: ReplayPlayerHandle) => void
+  events: readonly ReplayEvent[]
+  /** Called when the rrweb Replayer mounts or is destroyed. */
+  onPlayerReady: (handle: ReplayPlayerHandle | null) => void
 }
 
+/** Displays the selected tab's rrweb replay inside the audit browser chrome. */
 export function ReplayViewport({
   site,
   frame,
@@ -92,8 +80,8 @@ function Chrome({ url }: { url: string }) {
 }
 
 interface PlayerCanvasProps {
-  events: ReplayEvent[]
-  onReady: (handle: ReplayPlayerHandle) => void
+  events: readonly ReplayEvent[]
+  onReady: (handle: ReplayPlayerHandle | null) => void
 }
 
 /**
@@ -102,8 +90,11 @@ interface PlayerCanvasProps {
  * conditions, so this is defensive.
  */
 const DEFAULT_RECORDED_SIZE = { width: 1280, height: 720 }
+// rrweb casts events strictly before the target; 0ms can leave the first
+// snapshot blank while paused.
+const MIN_RENDER_SEEK_MS = 1
 
-function readRecordedSize(events: ReplayEvent[]): {
+function readRecordedSize(events: readonly ReplayEvent[]): {
   width: number
   height: number
 } {
@@ -120,14 +111,10 @@ function readRecordedSize(events: ReplayEvent[]): {
   return { width, height }
 }
 
+/** Mounts rrweb's imperative Replayer and exposes the narrow playback handle. */
 function PlayerCanvas({ events, onReady }: PlayerCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null)
-  // We deliberately use useEffect rather than deriving during render
-  // because Replayer mounts into the DOM imperatively and its
-  // cleanup needs to happen on unmount + on events-array swap (tab
-  // change). Re-renders without a swap should NOT re-mount; the
-  // ref-comparison guard below handles that.
-  const lastEventsRef = useRef<ReplayEvent[] | null>(null)
+  const lastEventsRef = useRef<readonly ReplayEvent[] | null>(null)
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
@@ -135,8 +122,6 @@ function PlayerCanvas({ events, onReady }: PlayerCanvasProps) {
     if (lastEventsRef.current === events) return
     lastEventsRef.current = events
 
-    // Strip the cockpit annotations so rrweb sees its canonical
-    // {type, data, timestamp} shape.
     const rrwebEvents = events.map((e) => ({
       type: e.type,
       data: e.data,
@@ -159,14 +144,6 @@ function PlayerCanvas({ events, onReady }: PlayerCanvasProps) {
       return
     }
 
-    // rrweb-player normally handles fit-to-container scaling; we
-    // mount the raw Replayer (see notes at the top of the file) so
-    // we do it ourselves. Read the recorded viewport from the meta
-    // event, absolute-position the .replayer-wrapper at 0,0 of the
-    // mount, and apply a uniform transform so it fits regardless of
-    // the player pane's size. A ResizeObserver keeps the scale in
-    // sync with layout changes (window resize, split-pane drags,
-    // tab switch narrowing the viewport, etc.).
     const { width: recordedW, height: recordedH } = readRecordedSize(events)
     const wrapper = mount.querySelector<HTMLElement>('.replayer-wrapper')
     let observer: ResizeObserver | null = null
@@ -189,14 +166,14 @@ function PlayerCanvas({ events, onReady }: PlayerCanvasProps) {
     }
 
     onReady({
-      // `pause(timeOffset)` jumps to that time and pauses. We pause
-      // rather than play so our scaffold's playback clock stays the
-      // source of truth.
-      goto: (ms) => replayer.pause(ms),
-      play: () => replayer.play(replayer.getCurrentTime()),
-      pause: () => replayer.pause(replayer.getCurrentTime()),
+      seek: (ms) => replayer.pause(Math.max(MIN_RENDER_SEEK_MS, ms)),
+      play: (ms) => replayer.play(ms),
+      pause: () => replayer.pause(),
+      setSpeed: (speed) => replayer.setConfig({ speed }),
+      getCurrentTime: () => replayer.getCurrentTime(),
     })
     return () => {
+      onReady(null)
       observer?.disconnect()
       try {
         replayer.destroy()

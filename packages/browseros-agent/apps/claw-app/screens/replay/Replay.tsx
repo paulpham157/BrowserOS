@@ -2,22 +2,6 @@
  * @license
  * Copyright 2025 BrowserOS
  * SPDX-License-Identifier: AGPL-3.0-or-later
- *
- * Top-level page for `/audit/:sessionId/replay`. Reuses the
- * existing scaffold's header / viewport / transport / timeline
- * layout but wires it to real data via `useReplayData`. The page
- * owns three pieces of state:
- *
- *   1. `selectedTabPageId`: which of the agent's tabs is currently
- *      replaying. Defaults to the first tab that has events.
- *   2. `playerHandle`: the imperative interface ReplayViewport
- *      hands back once rrweb-player mounts. We forward
- *      PlaybackTransport's seek/play/pause to it.
- *   3. The scaffold's `usePlayback` clock keeps owning the time
- *      cursor. PlaybackTransport's scrub event fires
- *      `playback.seek(t)` AND `playerHandle.goto(t * 1000)` in
- *      lockstep. The rrweb-player runs silently in the background
- *      since its controller is hidden.
  */
 
 import { ArrowLeft, History } from 'lucide-react'
@@ -33,6 +17,7 @@ import { buildTabView, EMPTY_TAB_VIEW, useReplayData } from './replay.data'
 import { frameIndexAt } from './replay.helpers'
 import { usePlayback } from './use-playback'
 
+/** Renders the audit replay page and syncs rrweb playback to the transport UI. */
 export function Replay() {
   const { replay, isLoading, navigate } = useReplayData()
   const location = useLocation()
@@ -40,19 +25,17 @@ export function Replay() {
     null,
   )
   const playerHandleRef = useRef<ReplayPlayerHandle | null>(null)
+  const playbackTimeRef = useRef(0)
+  const playbackSpeedRef = useRef(1)
+  const playbackIsPlayingRef = useRef(true)
+  const hasInitializedTabRef = useRef(false)
 
-  // Default the tab selector once the data lands.
   useEffect(() => {
     if (selectedTabPageId !== null) return
     if (!replay || replay.tabPageIds.length === 0) return
     setSelectedTabPageId(replay.tabPageIds[0])
   }, [replay, selectedTabPageId])
 
-  // Per-tab view: frames + events + duration scoped to the
-  // currently-selected tab, with frames time-shifted to tab-
-  // relative t=0. Every panel below (viewport, timeline, scrubber)
-  // reads from this and only this. Must be declared BEFORE the
-  // isLoading early-return so rules-of-hooks stays honest.
   const perTabView = useMemo(
     () =>
       replay
@@ -68,39 +51,80 @@ export function Replay() {
     [replay, selectedTabPageId],
   )
 
-  // Tab-scoped clock. Its totalSeconds changes when the operator
-  // switches tabs; the seek-to-0 effect below lands the playhead
-  // at the start of the new tab's story.
   const playback = usePlayback(perTabView.totalSeconds)
 
-  // When playback's time changes (driven by the scaffold's
-  // setInterval clock), forward to the rrweb-player. Without this
-  // the player would sit idle while the scrubber + timeline
-  // advance on their own.
   useEffect(() => {
-    playerHandleRef.current?.goto(playback.time * 1000)
+    playbackTimeRef.current = playback.time
   }, [playback.time])
 
-  // On tab switch, reset the clock to 0 so the operator lands at
-  // the tab's start (Option A: per-tab clocks). usePlayback's
-  // internal useState would otherwise keep the previous tab's
-  // position, which is meaningless in the new tab's timeline.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scoped to selectedTabPageId; `playback.seek` is a new reference every render and would cause an infinite loop.
   useEffect(() => {
-    playback.seek(0)
-  }, [selectedTabPageId])
+    playbackSpeedRef.current = playback.speed
+    playerHandleRef.current?.setSpeed(playback.speed)
+  }, [playback.speed])
 
-  // Mirror play/pause to the rrweb-player. The player still has
-  // its own internal clock for rendering frames between our seek
-  // updates, so a coarse play/pause is enough.
   useEffect(() => {
-    if (!playerHandleRef.current) return
-    if (playback.isPlaying) playerHandleRef.current.play()
-    else playerHandleRef.current.pause()
+    playbackIsPlayingRef.current = playback.isPlaying
   }, [playback.isPlaying])
 
-  const onPlayerReady = useCallback((handle: ReplayPlayerHandle) => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tab changes are the only reset trigger; task-duration updates must not restart playback.
+  useEffect(() => {
+    if (selectedTabPageId === null) return
+    if (!hasInitializedTabRef.current) {
+      hasInitializedTabRef.current = true
+      playbackTimeRef.current = 0
+      return
+    }
+    const seconds = playback.seek(0)
+    playbackTimeRef.current = seconds
+    playbackIsPlayingRef.current = false
+    playerHandleRef.current?.seek(0)
+  }, [selectedTabPageId])
+
+  useEffect(() => {
+    if (!playerHandleRef.current) return
+    if (playback.isPlaying) {
+      playerHandleRef.current.play(playbackTimeRef.current * 1000)
+    } else {
+      playerHandleRef.current.pause()
+    }
+  }, [playback.isPlaying])
+
+  useEffect(() => {
+    if (!playback.isPlaying || perTabView.totalSeconds === 0) return
+    let rafId = 0
+    let active = true
+    const sync = () => {
+      if (!active) return
+      const handle = playerHandleRef.current
+      const keepGoing = handle
+        ? playback.syncFromPlayer(handle.getCurrentTime() / 1000)
+        : true
+      if (keepGoing) rafId = window.requestAnimationFrame(sync)
+    }
+    rafId = window.requestAnimationFrame(sync)
+    return () => {
+      active = false
+      window.cancelAnimationFrame(rafId)
+    }
+  }, [playback.isPlaying, playback.syncFromPlayer, perTabView.totalSeconds])
+
+  const seekTo = useCallback(
+    (seconds: number) => {
+      const next = playback.seek(seconds)
+      playbackTimeRef.current = next
+      playbackIsPlayingRef.current = false
+      playerHandleRef.current?.seek(next * 1000)
+    },
+    [playback.seek],
+  )
+
+  const onPlayerReady = useCallback((handle: ReplayPlayerHandle | null) => {
     playerHandleRef.current = handle
+    if (!handle) return
+    const ms = playbackTimeRef.current * 1000
+    handle.setSpeed(playbackSpeedRef.current)
+    handle.seek(ms)
+    if (playbackIsPlayingRef.current) handle.play(ms)
   }, [])
 
   if (isLoading || !replay) {
@@ -130,9 +154,6 @@ export function Replay() {
     typeof (location.state as { from: unknown }).from === 'string'
   const back = () =>
     cameFromInAppFlow ? navigate(-1) : navigate(`/audit/${replay.sessionId}`)
-  // Everything below is tab-scoped: frame index, current frame,
-  // scrubber ticks, timeline actions. Playback.time is already in
-  // tab-relative seconds thanks to the per-tab usePlayback wiring.
   const currentTabFrameIndex = frameIndexAt(perTabView.frames, playback.time)
   const currentTabFrame = perTabView.frames[currentTabFrameIndex]
 
@@ -208,13 +229,14 @@ export function Replay() {
             playback={playback}
             totalSeconds={perTabView.totalSeconds}
             frames={perTabView.frames}
+            onSeek={seekTo}
           />
         </div>
         <EventTimeline
           frames={perTabView.frames}
           currentFrameIndex={currentTabFrameIndex}
           currentTime={playback.time}
-          onSeek={playback.seek}
+          onSeek={seekTo}
         />
       </div>
     </div>

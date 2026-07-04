@@ -2,28 +2,6 @@
  * @license
  * Copyright 2025 BrowserOS
  * SPDX-License-Identifier: AGPL-3.0-or-later
- *
- * Bridges the audit task + rrweb replay data into the shape the
- * existing `Replay.tsx` scaffold consumes. Two concurrent queries:
- *
- *   - `useTaskDetail({sessionId})` for the dispatch trail
- *     (one ToolDispatchRow per agent action) plus session start /
- *     end events. This populates `ReplayFrame[]`, the right-side
- *     EventTimeline, and the page metadata strip (agent, status,
- *     duration).
- *   - `useReplayEvents({sessionId})` for the rrweb event stream
- *     (mounted by `ReplayViewport` into rrweb-player). The events
- *     are passed through this hook's return value so the page can
- *     pick a tabPageId and the viewport can subscribe to filtered
- *     events.
- *
- * `frames` is derived from `dispatches` here. Mapping is
- * deterministic; see `mapDispatchToFrame` for the toolName ->
- * verb/kind translation. The `t` (seconds-into-session) is
- * computed against `sessionStartMs` from the task's startEvent.
- *
- * `replay` is null while either query is loading or there is no
- * task at all (404).
  */
 
 import { useMemo } from 'react'
@@ -41,6 +19,11 @@ import {
   type ReplayVerb,
   useReplayEvents,
 } from '@/modules/api/replay.hooks'
+import {
+  buildReplayEventTabs,
+  EMPTY_REPLAY_EVENTS,
+  type ReplayEventTabs,
+} from './replay-events'
 
 export interface ReplayData {
   sessionId: string
@@ -68,7 +51,7 @@ export interface ReplayData {
   /** Distinct tabPageIds with rrweb events. */
   tabPageIds: number[]
   /** Filter helper: events scoped to one tabPageId. */
-  eventsForTab: (tabPageId: number) => ReplayEvent[]
+  eventsForTab: (tabPageId: number) => readonly ReplayEvent[]
 }
 
 // `buildTabView` and the `TabView` shape live in `./tab-view.ts` so
@@ -88,6 +71,7 @@ export interface UseReplayDataResult {
   navigate: ReturnType<typeof useNavigate>
 }
 
+/** Loads task metadata and stable rrweb event buckets for the replay page. */
 export function useReplayData(): UseReplayDataResult {
   const { sessionId = '' } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
@@ -100,10 +84,12 @@ export function useReplayData(): UseReplayDataResult {
     enabled: sessionId.length > 0,
   })
 
+  const events = eventsQuery.data?.events ?? EMPTY_REPLAY_EVENTS
+  const eventTabs = useMemo(() => buildReplayEventTabs(events), [events])
   const replay = useMemo<ReplayData | null>(() => {
     if (!taskQuery.data) return null
-    return buildReplayData(taskQuery.data, eventsQuery.data?.events ?? [])
-  }, [taskQuery.data, eventsQuery.data])
+    return buildReplayData(taskQuery.data, eventTabs)
+  }, [taskQuery.data, eventTabs])
 
   return {
     replay,
@@ -113,7 +99,11 @@ export function useReplayData(): UseReplayDataResult {
   }
 }
 
-function buildReplayData(task: TaskDetail, events: ReplayEvent[]): ReplayData {
+/** Converts task rows into replay metadata while reusing event buckets. */
+function buildReplayData(
+  task: TaskDetail,
+  eventTabs: ReplayEventTabs,
+): ReplayData {
   const sessionStartMs = task.startedAt
   const lastDispatchAt = task.dispatches.length
     ? task.dispatches[task.dispatches.length - 1].createdAt
@@ -126,23 +116,6 @@ function buildReplayData(task: TaskDetail, events: ReplayEvent[]): ReplayData {
   const frames: ReplayFrame[] = task.dispatches.map((row) =>
     mapDispatchToFrame(row, sessionStartMs),
   )
-
-  // Preserve first-appearance order for the tab list so per-tab
-  // labels (Tab 1, Tab 2, ...) match the operator's mental
-  // narrative and align with the audit view's sequential
-  // numbering. The raw BrowserOS pageId is non-contiguous and not
-  // useful to surface as a label.
-  const tabsInOrder: number[] = []
-  const eventsByTab = new Map<number, ReplayEvent[]>()
-  for (const ev of events) {
-    const list = eventsByTab.get(ev.tabPageId)
-    if (list) {
-      list.push(ev)
-    } else {
-      eventsByTab.set(ev.tabPageId, [ev])
-      tabsInOrder.push(ev.tabPageId)
-    }
-  }
 
   return {
     sessionId: task.sessionId,
@@ -159,8 +132,8 @@ function buildReplayData(task: TaskDetail, events: ReplayEvent[]): ReplayData {
     approvals: String(countApprovals(task.dispatches)),
     totalSeconds: totalMs / 1000,
     frames,
-    tabPageIds: tabsInOrder,
-    eventsForTab: (id) => eventsByTab.get(id) ?? [],
+    tabPageIds: eventTabs.tabPageIds,
+    eventsForTab: eventTabs.eventsForTab,
   }
 }
 

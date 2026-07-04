@@ -12,6 +12,7 @@ interface PlaybackTransportProps {
   playback: Playback
   totalSeconds: number
   frames: readonly ReplayFrame[]
+  onSeek: (seconds: number) => void
 }
 
 /**
@@ -23,13 +24,14 @@ export function PlaybackTransport({
   playback,
   totalSeconds,
   frames,
+  onSeek,
 }: PlaybackTransportProps) {
-  const { time, isPlaying, speed, setSpeed, togglePlay, seek } = playback
+  const { time, isPlaying, speed, setSpeed, togglePlay } = playback
   const finished = time >= totalSeconds
   const progress = totalSeconds === 0 ? 0 : (time / totalSeconds) * 100
 
   const onScrubberChange = (event: ChangeEvent<HTMLInputElement>) => {
-    seek(Number(event.target.value))
+    onSeek(Number(event.target.value))
   }
 
   return (
@@ -70,7 +72,7 @@ export function PlaybackTransport({
                 key={`bookmark-${frame.kind}-${frame.t}`}
                 title={frame.caption}
                 aria-label={`Jump to ${frame.caption}`}
-                onClick={() => seek(frame.t)}
+                onClick={() => onSeek(frame.t)}
                 style={{ left: `${pct}%` }}
                 className={cn(
                   'absolute z-10 size-2.5 -translate-x-1/2 rounded-full border-2 border-card shadow-sm',

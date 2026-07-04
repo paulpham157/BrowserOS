@@ -2,14 +2,6 @@
  * @license
  * Copyright 2026 BrowserOS
  * SPDX-License-Identifier: AGPL-3.0-or-later
- *
- * Pure `buildTabView` helper. Kept in its own file (not
- * `replay.data.ts`) so tests can import it without dragging the
- * whole react-query-kit hook graph, which some sibling tests
- * `mock.module`-poison in ways that break transitively.
- *
- * See the replay tab-driven architecture plan for the rationale
- * and the surrounding refactor.
  */
 
 import type { ReplayEvent, ReplayFrame } from '@/modules/api/replay.hooks'
@@ -19,15 +11,14 @@ import type { ReplayEvent, ReplayFrame } from '@/modules/api/replay.hooks'
  * `tabPageId`:
  *   - `frames`: filtered AND time-shifted so `t=0` is the tab's
  *     first activity, not session start.
- *   - `events`: pass-through. rrweb's Replayer treats the first
- *     event's `ts` as its playback origin, so a tab-relative
- *     `playback.time` maps 1:1 to `goto(time*1000)`.
+ *   - `events`: pass-through. rrweb treats the first event's `ts`
+ *     as the tab-relative playback origin.
  *   - `totalSeconds`: duration of this tab's activity window (from
  *     first event to last event). 0 for empty tabs.
  */
 export interface TabView {
   frames: ReplayFrame[]
-  events: ReplayEvent[]
+  events: readonly ReplayEvent[]
   totalSeconds: number
 }
 
@@ -40,19 +31,12 @@ export const EMPTY_TAB_VIEW: TabView = {
 export interface BuildTabViewInput {
   /** Session-scoped frames (any pageId). */
   frames: ReplayFrame[]
-  /**
-   * The events lookup for the selected tab. Called once at most;
-   * returning an empty array means the tab has no rrweb data.
-   */
-  eventsForTab: (tabPageId: number) => ReplayEvent[]
+  eventsForTab: (tabPageId: number) => readonly ReplayEvent[]
   /** Session start in ms since epoch. Anchor for frame `t` values. */
   startedAtMs: number
 }
 
-/**
- * Pure. O(N) over frames. Callers should memoise per
- * (input, tabPageId) pair.
- */
+/** Builds the frame/event/duration view for the selected replay tab. */
 export function buildTabView(
   input: BuildTabViewInput,
   tabPageId: number | null,
