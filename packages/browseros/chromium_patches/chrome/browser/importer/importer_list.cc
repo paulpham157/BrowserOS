@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/importer/importer_list.cc b/chrome/browser/importer/importer_list.cc
-index 62546b572bab8..6ebad489e44bb 100644
+index 62546b572bab8..80a7ec69346ec 100644
 --- a/chrome/browser/importer/importer_list.cc
 +++ b/chrome/browser/importer/importer_list.cc
 @@ -6,10 +6,15 @@
@@ -217,8 +217,8 @@ index 62546b572bab8..6ebad489e44bb 100644
 +    if (*profile_id == "Default") {
 +      chrome.importer_name = l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME);
 +    } else {
-+      chrome.importer_name = l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME) +
-+                            u" - " + base::UTF8ToUTF16(*name);
++      chrome.importer_name = l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME);
++      chrome.profile = base::UTF8ToUTF16(*name);
 +    }
 +    chrome.importer_type = user_data_importer::TYPE_CHROME;
 +    chrome.services_supported = services;

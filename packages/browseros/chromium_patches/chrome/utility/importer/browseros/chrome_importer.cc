@@ -1,9 +1,9 @@
 diff --git a/chrome/utility/importer/browseros/chrome_importer.cc b/chrome/utility/importer/browseros/chrome_importer.cc
 new file mode 100644
-index 0000000000000..41dce65dacf4f
+index 0000000000000..ecb17e09bdaf8
 --- /dev/null
 +++ b/chrome/utility/importer/browseros/chrome_importer.cc
-@@ -0,0 +1,202 @@
+@@ -0,0 +1,209 @@
 +// Copyright 2023 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -32,6 +32,7 @@ index 0000000000000..41dce65dacf4f
 +    ImporterBridge* bridge) {
 +  bridge_ = bridge;
 +  source_path_ = source_profile.source_path;
++  source_profile_name_ = source_profile.profile;
 +
 +  bridge_->NotifyStarted();
 +
@@ -104,8 +105,14 @@ index 0000000000000..41dce65dacf4f
 +  if (!result.bookmarks.empty() && !cancelled()) {
 +    LOG(INFO) << "browseros: Importing " << result.bookmarks.size()
 +              << " bookmarks";
-+    bridge_->AddBookmarks(result.bookmarks,
-+                          l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME));
++    std::u16string folder_name =
++        l10n_util::GetStringUTF16(IDS_IMPORT_FROM_CHROME);
++    if (!source_profile_name_.empty()) {
++      folder_name += u" (";
++      folder_name += source_profile_name_;
++      folder_name += u")";
++    }
++    bridge_->AddBookmarks(result.bookmarks, folder_name);
 +  } else {
 +    LOG(INFO) << "browseros: No bookmarks to import";
 +  }
