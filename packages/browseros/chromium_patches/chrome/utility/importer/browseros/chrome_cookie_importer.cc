@@ -1,9 +1,9 @@
 diff --git a/chrome/utility/importer/browseros/chrome_cookie_importer.cc b/chrome/utility/importer/browseros/chrome_cookie_importer.cc
 new file mode 100644
-index 0000000000000..f905d442b87ef
+index 0000000000000..44937aaa83494
 --- /dev/null
 +++ b/chrome/utility/importer/browseros/chrome_cookie_importer.cc
-@@ -0,0 +1,299 @@
+@@ -0,0 +1,300 @@
 +// Copyright 2024 AKW Technology Inc
 +// Chrome cookie importer implementation
 +
@@ -155,16 +155,6 @@ index 0000000000000..f905d442b87ef
 +    const base::FilePath& profile_path) {
 +  std::vector<ImportedCookieEntry> cookies;
 +
-+  // Extract encryption key (same key used for passwords and cookies)
-+  KeyExtractionResult key_result;
-+  std::string encryption_key = ExtractChromeKey(profile_path, &key_result);
-+
-+  if (encryption_key.empty()) {
-+    LOG(WARNING) << "browseros: Failed to extract encryption key, "
-+                 << "result: " << static_cast<int>(key_result);
-+    return cookies;
-+  }
-+
 +  // Path to Cookies database
 +  base::FilePath cookies_path = profile_path.AppendASCII(kCookiesFilename);
 +  if (!base::PathExists(cookies_path)) {
@@ -219,6 +209,17 @@ index 0000000000000..f905d442b87ef
 +    sql::Statement statement(db.GetUniqueStatement(kQuery));
 +    if (!statement.is_valid()) {
 +      LOG(WARNING) << "browseros: Failed to prepare query";
++      DeleteDatabaseTemp(temp_db_path);
++      return cookies;
++    }
++
++    // Extract encryption key only once the selected Cookies database is known
++    // to exist and have the schema we import.
++    KeyExtractionResult key_result;
++    std::string encryption_key = ExtractChromeKey(profile_path, &key_result);
++    if (encryption_key.empty()) {
++      LOG(WARNING) << "browseros: Failed to extract encryption key, "
++                   << "result: " << static_cast<int>(key_result);
 +      DeleteDatabaseTemp(temp_db_path);
 +      return cookies;
 +    }

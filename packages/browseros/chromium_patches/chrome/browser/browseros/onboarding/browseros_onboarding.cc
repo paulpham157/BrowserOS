@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/browseros/onboarding/browseros_onboarding.cc b/chrome/browser/browseros/onboarding/browseros_onboarding.cc
 new file mode 100644
-index 0000000000000..6533bea65f850
+index 0000000000000..d530753f436a0
 --- /dev/null
 +++ b/chrome/browser/browseros/onboarding/browseros_onboarding.cc
-@@ -0,0 +1,713 @@
+@@ -0,0 +1,729 @@
 +// Copyright 2026 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -39,6 +39,8 @@ index 0000000000000..6533bea65f850
 +#include "chrome/grit/browseros_onboarding_resources.h"
 +#include "chrome/grit/browseros_onboarding_resources_map.h"
 +#include "components/user_data_importer/common/importer_data_types.h"
++#include "content/public/browser/visibility.h"
++#include "content/public/browser/web_contents.h"
 +#include "content/public/browser/web_ui.h"
 +#include "content/public/browser/web_ui_data_source.h"
 +#include "content/public/browser/web_ui_message_handler.h"
@@ -239,6 +241,13 @@ index 0000000000000..6533bea65f850
 +      return;
 +    }
 +
++    if (!CanStartImportFromCurrentWebContents()) {
++      SendFailure(
++          "ready", "user_interaction_required",
++          "Click Import from the visible onboarding window to continue.");
++      return;
++    }
++
 +    ResetImportState();
 +    if (!importer_list_loaded_ || !importer_list_ ||
 +        importer_list_->count() == 0) {
@@ -289,6 +298,13 @@ index 0000000000000..6533bea65f850
 +      completion_callback.Run();
 +      return;
 +    }
++  }
++
++  bool CanStartImportFromCurrentWebContents() {
++    content::WebContents* contents = web_ui()->GetWebContents();
++    return contents &&
++           contents->GetVisibility() == content::Visibility::VISIBLE &&
++           contents->HasRecentInteraction();
 +  }
 +
 +  void DetectSources() {

@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/browseros/onboarding/browseros_onboarding_api.ts b/chrome/browser/browseros/onboarding/browseros_onboarding_api.ts
 new file mode 100644
-index 0000000000000..bb38f100d0c23
+index 0000000000000..83a1cb5ea28c7
 --- /dev/null
 +++ b/chrome/browser/browseros/onboarding/browseros_onboarding_api.ts
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,99 @@
 +// Copyright 2026 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -74,7 +74,13 @@ index 0000000000000..bb38f100d0c23
 +  results?: BrowserOSImportSourceResult[];
 +}
 +
-+/** Starts one source or an ordered multi-source import queue. */
++/**
++ * Starts one source or an ordered multi-source import queue.
++ *
++ * Must be sent directly from the visible Import action. The browser process
++ * rejects hidden or non-interactive startImport messages because importing
++ * cookies/passwords can trigger the macOS Chrome Safe Storage keychain prompt.
++ */
 +export interface BrowserOSStartImportRequest {
 +  sourceId?: string;
 +  items?: BrowserOSImportItem[];

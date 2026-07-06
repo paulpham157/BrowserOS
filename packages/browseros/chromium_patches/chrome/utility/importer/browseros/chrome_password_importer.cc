@@ -1,9 +1,9 @@
 diff --git a/chrome/utility/importer/browseros/chrome_password_importer.cc b/chrome/utility/importer/browseros/chrome_password_importer.cc
 new file mode 100644
-index 0000000000000..896f66db32980
+index 0000000000000..00528908da168
 --- /dev/null
 +++ b/chrome/utility/importer/browseros/chrome_password_importer.cc
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,148 @@
 +// Copyright 2024 AKW Technology Inc
 +// Chrome password importer implementation
 +
@@ -33,16 +33,6 @@ index 0000000000000..896f66db32980
 +    const base::FilePath& profile_path) {
 +  std::vector<user_data_importer::ImportedPasswordForm> passwords;
 +
-+  // Extract encryption key
-+  KeyExtractionResult key_result;
-+  std::string encryption_key = ExtractChromeKey(profile_path, &key_result);
-+
-+  if (encryption_key.empty()) {
-+    LOG(WARNING) << "browseros: Failed to extract encryption key, "
-+                 << "result: " << static_cast<int>(key_result);
-+    return passwords;
-+  }
-+
 +  // Path to Login Data database
 +  base::FilePath login_data_path = profile_path.AppendASCII(kLoginDataFilename);
 +  if (!base::PathExists(login_data_path)) {
@@ -68,8 +58,8 @@ index 0000000000000..896f66db32980
 +  // Count of passwords skipped because they use App-Bound Encryption.
 +  int skipped_app_bound = 0;
 +
-+  // Query logins table - use scope block to ensure statement is destroyed before
-+  // db.Close() to avoid DCHECK failure
++  // Query logins table - use scope block to ensure statement is destroyed
++  // before db.Close() to avoid DCHECK failure
 +  {
 +    const char kQuery[] =
 +        "SELECT origin_url, action_url, username_element, username_value, "
@@ -79,6 +69,17 @@ index 0000000000000..896f66db32980
 +    sql::Statement statement(db.GetUniqueStatement(kQuery));
 +    if (!statement.is_valid()) {
 +      LOG(WARNING) << "browseros: Failed to prepare query";
++      DeleteDatabaseTemp(temp_db_path);
++      return passwords;
++    }
++
++    // Extract encryption key only once the selected Login Data database is
++    // known to exist and have the schema we import.
++    KeyExtractionResult key_result;
++    std::string encryption_key = ExtractChromeKey(profile_path, &key_result);
++    if (encryption_key.empty()) {
++      LOG(WARNING) << "browseros: Failed to extract encryption key, "
++                   << "result: " << static_cast<int>(key_result);
 +      DeleteDatabaseTemp(temp_db_path);
 +      return passwords;
 +    }
