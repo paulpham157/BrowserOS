@@ -9,7 +9,11 @@ from typing import Dict
 
 from ..core.products import ProductDescriptor
 from .browseros.product import BROWSEROS_PRODUCT, BROWSEROS_SERVER_BUNDLE
-from .browserclaw.product import BROWSERCLAW_PRODUCT, BROWSERCLAW_SERVER_BUNDLE
+from .browserclaw.product import (
+    BROWSERCLAW_PRODUCT,
+    BROWSERCLAW_RUST_SERVER_BUNDLE,
+    BROWSERCLAW_SERVER_BUNDLE,
+)
 
 DEFAULT_PRODUCT_ID = BROWSEROS_PRODUCT.id
 
@@ -27,4 +31,5 @@ __all__ = [
     "SERVER_BUNDLES",
     "BROWSEROS_PRODUCT",
     "BROWSERCLAW_PRODUCT",
+    "BROWSERCLAW_RUST_SERVER_BUNDLE",
 ]

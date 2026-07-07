@@ -226,7 +226,13 @@ def copy_browser_files(
 def _server_output_roots(ctx: Context) -> list[str]:
     """Return final server bundle roots for the active product."""
     product = getattr(ctx, "product", None)
-    bundles = server_bundles_for_product(product.id) if product else all_server_bundles()
+    flags = getattr(ctx, "build_flags", None)
+    use_rust = flags.use_claw_server_rust if flags is not None else None
+    bundles = (
+        server_bundles_for_product(product.id, use_rust)
+        if product
+        else all_server_bundles(use_rust)
+    )
     return [bundle.chromium_output_root for bundle in bundles]
 
 

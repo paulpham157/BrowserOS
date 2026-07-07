@@ -33,7 +33,7 @@ from .sign_binary import (
 )
 from ..feeds.render import render_server_appcast
 from ..feeds.spec import CDN_BASE_URL, server_feed
-from ...products.server_binaries import ServerBundle, server_bundles_for_product
+from ...products.server_binaries import ServerBundle, server_ota_bundles_for_product
 from ...lib.r2 import get_r2_client, upload_file_to_r2, download_file_from_r2
 from ...steps.storage.download import extract_artifact_zip
 
@@ -64,7 +64,7 @@ class ServerOTAModule(Step):
 
     @property
     def bundle(self) -> ServerBundle:
-        bundles = server_bundles_for_product(self.product_id)
+        bundles = server_ota_bundles_for_product(self.product_id)
         if not bundles:
             raise RuntimeError(
                 f"Product '{self.product_id}' has no server bundle"
@@ -87,7 +87,7 @@ class ServerOTAModule(Step):
         if self.channel not in ["alpha", "prod"]:
             raise ValidationError("Channel must be 'alpha' or 'prod'")
 
-        if not server_bundles_for_product(self.product_id):
+        if not server_ota_bundles_for_product(self.product_id):
             raise ValidationError(
                 f"Product '{self.product_id}' has no server bundle"
             )

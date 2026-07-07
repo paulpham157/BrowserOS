@@ -16,6 +16,7 @@ from unittest.mock import patch
 import yaml
 from bos_build.core.context import Context
 from bos_build.core.products import get_product_descriptor
+from bos_build.lib.build_flags import BuildFlags
 from bos_build.steps.storage.download import (
     ARTIFACT_METADATA_NAME,
     DownloadResourcesModule,
@@ -373,11 +374,50 @@ class DownloadResourceConfigTest(unittest.TestCase):
                     ]
                     self.assertEqual([expected], actual)
 
-    def test_real_config_includes_server_artifacts_for_browserclaw_product(self) -> None:
+    def test_real_config_downloads_rust_claw_server_for_browserclaw_by_default(
+        self,
+    ) -> None:
         operations = self._real_download_operations()
 
         filtered = self._filter_operations(
-            operations, "macos", "arm64", product="browserclaw"
+            operations,
+            "macos",
+            "arm64",
+            product="browserclaw",
+            use_claw_server_rust=True,
+        )
+
+        self.assertEqual(
+            [
+                (
+                    "BrowserOS Server Resources - macOS ARM64",
+                    "artifacts/server/latest/browseros-server-resources-darwin-arm64.zip",
+                    "resources/binaries/browseros_server/darwin-arm64",
+                ),
+                (
+                    "BrowserOS Claw Rust Server Resources - macOS ARM64",
+                    "claw-server-rust/prod-resources/latest/browseros-claw-server-rust-resources-darwin-arm64.zip",
+                    "resources/binaries/browseros_claw_server_rust/darwin-arm64",
+                ),
+            ],
+            [
+                (op["name"], op["r2_key"], op["destination"])
+                for op in filtered
+                if "Server Resources" in op["name"]
+            ],
+        )
+
+    def test_real_config_downloads_typescript_claw_server_when_flag_false(
+        self,
+    ) -> None:
+        operations = self._real_download_operations()
+
+        filtered = self._filter_operations(
+            operations,
+            "macos",
+            "arm64",
+            product="browserclaw",
+            use_claw_server_rust=False,
         )
 
         self.assertEqual(
@@ -391,11 +431,6 @@ class DownloadResourceConfigTest(unittest.TestCase):
                     "BrowserOS Claw Server Resources - macOS ARM64",
                     "claw-server/prod-resources/latest/browseros-claw-server-resources-darwin-arm64.zip",
                     "resources/binaries/browseros_claw_server/darwin-arm64",
-                ),
-                (
-                    "BrowserOS Claw Rust Server Resources - macOS ARM64",
-                    "claw-server-rust/prod-resources/latest/browseros-claw-server-rust-resources-darwin-arm64.zip",
-                    "resources/binaries/browseros_claw_server_rust/darwin-arm64",
                 ),
             ],
             [
@@ -418,6 +453,7 @@ class DownloadResourceConfigTest(unittest.TestCase):
         platform: str,
         architecture: str,
         product: str = "browseros",
+        use_claw_server_rust: bool = True,
     ) -> list[dict]:
         ctx = cast(
             Context,
@@ -425,6 +461,9 @@ class DownloadResourceConfigTest(unittest.TestCase):
                 architecture=architecture,
                 build_type="release",
                 product=get_product_descriptor(product),
+                build_flags=BuildFlags(
+                    use_claw_server_rust=use_claw_server_rust
+                ),
             ),
         )
         with patch("bos_build.steps.storage.download.get_platform", return_value=platform):

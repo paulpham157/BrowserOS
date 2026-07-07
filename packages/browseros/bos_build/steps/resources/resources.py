@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 from ...core.step import Step, ValidationError, step
 from ...core.context import Context
+from ...lib.build_flags import build_flags_for_context
 from ...lib.utils import log_info, log_success, log_error, log_warning, get_platform
 
 
@@ -52,6 +53,8 @@ def copy_resources_impl(ctx: Context, commit_each: bool = False) -> bool:
             "📝 Git commit mode enabled - will create a commit after each resource copy"
         )
 
+    all_ok = True
+
     # Process each copy operation
     for operation in config["copy_operations"]:
         name = operation.get("name", "Unnamed operation")
@@ -62,12 +65,36 @@ def copy_resources_impl(ctx: Context, commit_each: bool = False) -> bool:
         os_condition = operation.get("os")
         arch_condition = operation.get("arch")
         product_condition = operation.get("product")
+        variant_condition = operation.get("claw_server_variant")
 
         if not product_matches(product_condition, ctx.product.id):
             log_info(
                 f"  ⏭️  Skipping {name} (product: {product_condition}, current: {ctx.product.id})"
             )
             continue
+
+        if not claw_server_variant_matches(variant_condition, ctx):
+            log_info(
+                "  ⏭️  Skipping "
+                f"{name} (claw_server_variant: {variant_condition}, "
+                f"selected: {_selected_claw_server_variant(ctx)})"
+            )
+            continue
+
+        selected_claw_variant = is_selected_claw_server_variant(
+            variant_condition, ctx
+        )
+        if selected_claw_variant and operation.get("selected_destination"):
+            destination = operation["selected_destination"]
+        clear_destination = (
+            selected_claw_variant
+            and operation.get("selected_clear_destination", False)
+        )
+        renames = (
+            operation.get("selected_renames")
+            if selected_claw_variant
+            else operation.get("renames")
+        )
 
         # Skip operation if build_type condition doesn't match
         if build_type_condition and build_type_condition != ctx.build_type:
@@ -100,12 +127,16 @@ def copy_resources_impl(ctx: Context, commit_each: bool = False) -> bool:
         log_info(f"  • {name}")
 
         try:
+            copied = False
+            if clear_destination:
+                clear_path(dst_base)
             if op_type == "directory":
                 # Copy entire directory
                 if src_path.exists() and src_path.is_dir():
                     dst_path = dst_base
                     dst_path.mkdir(parents=True, exist_ok=True)
                     shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+                    copied = True
                     log_info(f"    ✓ Copied directory: {source} → {destination}")
                     if commit_each:
                         commit_resource_copy(
@@ -123,6 +154,7 @@ def copy_resources_impl(ctx: Context, commit_each: bool = False) -> bool:
                         file_path = Path(file_path)
                         if file_path.is_file():
                             shutil.copy2(file_path, dst_base)
+                            copied = True
                     log_info(
                         f"    ✓ Copied {len(files)} files: {source} → {destination}"
                     )
@@ -138,6 +170,7 @@ def copy_resources_impl(ctx: Context, commit_each: bool = False) -> bool:
                 if src_path.exists() and src_path.is_file():
                     dst_base.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src_path, dst_base)
+                    copied = True
                     log_info(f"    ✓ Copied file: {source} → {destination}")
                     if commit_each:
                         commit_resource_copy(
@@ -146,11 +179,16 @@ def copy_resources_impl(ctx: Context, commit_each: bool = False) -> bool:
                 else:
                     log_warning(f"    Source file not found: {source}")
 
+            if copied and renames:
+                apply_renames(dst_base, renames)
+
         except Exception as e:
             log_error(f"    Error: {e}")
+            all_ok = False
 
-    log_success("Resources copied")
-    return True
+    if all_ok:
+        log_success("Resources copied")
+    return all_ok
 
 
 def product_matches(product_condition, product_id: str) -> bool:
@@ -163,6 +201,79 @@ def product_matches(product_condition, product_id: str) -> bool:
         [product_condition] if isinstance(product_condition, str) else product_condition
     )
     return product_id in products
+
+
+def claw_server_variant_matches(variant_condition, ctx: Context) -> bool:
+    """Return whether a BrowserClaw-only claw-server variant gate matches."""
+    if variant_condition is None:
+        return True
+    if ctx.product.id != "browserclaw":
+        return True
+    if variant_condition not in ("typescript", "rust"):
+        raise ValueError(
+            "claw_server_variant must be 'typescript' or 'rust', got "
+            f"{variant_condition!r}"
+        )
+    return variant_condition == _selected_claw_server_variant(ctx)
+
+
+def is_selected_claw_server_variant(variant_condition, ctx: Context) -> bool:
+    """Return true only for the selected BrowserClaw claw-server operation."""
+    return (
+        variant_condition is not None
+        and ctx.product.id == "browserclaw"
+        and variant_condition == _selected_claw_server_variant(ctx)
+    )
+
+
+def apply_renames(base: Path, renames) -> None:
+    """Rename declared relative paths under an already-copied destination."""
+    if not isinstance(renames, list):
+        raise ValueError("renames must be a list")
+
+    for rename in renames:
+        if not isinstance(rename, dict):
+            raise ValueError("rename entries must be mappings")
+        src_rel = _safe_relative_path(rename.get("from"), "from")
+        dst_rel = _safe_relative_path(rename.get("to"), "to")
+        src = base / src_rel
+        dst = base / dst_rel
+        if not src.is_file():
+            raise FileNotFoundError(f"rename source not found: {src_rel.as_posix()}")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists():
+            if dst.is_dir():
+                raise IsADirectoryError(f"rename target is a directory: {dst_rel}")
+            dst.unlink()
+        src.rename(dst)
+        log_info(f"    ✓ Renamed {src_rel.as_posix()} → {dst_rel.as_posix()}")
+
+
+def clear_path(path: Path) -> None:
+    """Remove an existing destination before a mutually exclusive copy."""
+    if not path.exists():
+        return
+    if path.is_dir():
+        shutil.rmtree(path)
+        return
+    path.unlink()
+
+
+def _selected_claw_server_variant(ctx: Context) -> str:
+    return (
+        "rust"
+        if build_flags_for_context(ctx).use_claw_server_rust
+        else "typescript"
+    )
+
+
+def _safe_relative_path(raw_path, field: str) -> Path:
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"rename {field} must be a non-empty relative path")
+    rel = Path(raw_path)
+    if rel.is_absolute() or ".." in rel.parts or rel == Path("."):
+        raise ValueError(f"rename {field} is unsafe: {raw_path}")
+    return rel
 
 
 def commit_resource_copy(

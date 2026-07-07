@@ -48,11 +48,18 @@ SERVER_RESOURCES_JUNK_FILES = {".DS_Store"}
 
 
 def verify_server_resources_bundle(
-    app_path: Path, chromium_src: Path, product_id: Optional[str] = None
+    app_path: Path,
+    chromium_src: Path,
+    product_id: Optional[str] = None,
+    use_claw_server_rust: Optional[bool] = None,
 ) -> List[str]:
     """Check bundled server resources match what the build staged."""
     problems: List[str] = []
-    bundles = server_bundles_for_product(product_id) if product_id else all_server_bundles()
+    bundles = (
+        server_bundles_for_product(product_id, use_claw_server_rust)
+        if product_id
+        else all_server_bundles(use_claw_server_rust)
+    )
     for bundle in bundles:
         problems.extend(_verify_server_resource_bundle(bundle, app_path, chromium_src))
     return problems
@@ -222,7 +229,10 @@ class MacOSSignModule(Step):
 
     def _verify_server_resources(self, app_path: Path, ctx: Context) -> None:
         problems = verify_server_resources_bundle(
-            app_path, ctx.chromium_src, ctx.product.id
+            app_path,
+            ctx.chromium_src,
+            ctx.product.id,
+            ctx.build_flags.use_claw_server_rust,
         )
         if problems:
             raise RuntimeError(
@@ -401,7 +411,13 @@ def find_components_to_sign(
         if nested_app not in components["helpers"]:
             components["apps"].append(nested_app)
 
-    bundles = server_bundles_for_product(ctx.product.id) if ctx else all_server_bundles()
+    flags = getattr(ctx, "build_flags", None) if ctx else None
+    use_rust = flags.use_claw_server_rust if flags is not None else None
+    bundles = (
+        server_bundles_for_product(ctx.product.id, use_rust)
+        if ctx
+        else all_server_bundles(use_rust)
+    )
     for bundle in bundles:
         bundle_root = app_path / bundle.macos_bundle_resources_root
         if not bundle_root.exists():

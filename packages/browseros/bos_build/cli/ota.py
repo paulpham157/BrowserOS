@@ -21,7 +21,7 @@ from ..release.ota.common import (
 )
 from ..release.feeds.publisher import FeedPublisher
 from ..release.feeds.spec import server_feed
-from ..products.server_binaries import server_bundles_for_product
+from ..products.server_binaries import server_ota_bundles_for_product
 
 app = typer.Typer(
     help="OTA (Over-The-Air) update automation",
@@ -58,7 +58,7 @@ def execute_module(ctx: Context, module) -> None:
 
 
 def _server_bundle_id(product: str) -> str:
-    bundles = server_bundles_for_product(product)
+    bundles = server_ota_bundles_for_product(product)
     if not bundles:
         log_error(f"Product '{product}' has no server bundle")
         raise typer.Exit(1)

@@ -77,13 +77,15 @@ class WindowsSignModule(Step):
         log_info("\nStep 1/3: Signing executables before packaging...")
         env = ctx.env
         binaries_to_sign_first = [build_output_dir / "chrome.exe"]
+        flags = getattr(ctx, "build_flags", None)
+        use_rust = getattr(flags, "use_claw_server_rust", None)
         binaries_to_sign_first.extend(
             get_existing_browseros_server_binary_paths(
-                build_output_dir, ctx.product.id
+                build_output_dir, ctx.product.id, use_rust
             )
         )
         missing = get_missing_required_browseros_server_binary_paths(
-            build_output_dir, ctx.product.id
+            build_output_dir, ctx.product.id, use_rust
         )
         if missing:
             raise RuntimeError(
@@ -123,29 +125,43 @@ class WindowsSignModule(Step):
 
 
 def get_browseros_server_binary_paths(
-    build_output_dir: Path, product_id: str | None = None
+    build_output_dir: Path,
+    product_id: str | None = None,
+    use_claw_server_rust: bool | None = None,
 ) -> List[Path]:
     """Return absolute paths to bundled server binaries for signing."""
-    return expected_windows_bundle_binary_paths(build_output_dir, product_id)
+    return expected_windows_bundle_binary_paths(
+        build_output_dir, product_id, use_claw_server_rust
+    )
 
 
 def get_existing_browseros_server_binary_paths(
-    build_output_dir: Path, product_id: str | None = None
+    build_output_dir: Path,
+    product_id: str | None = None,
+    use_claw_server_rust: bool | None = None,
 ) -> List[Path]:
     """Return bundled server binary paths that exist in a build output dir."""
     return [
         path
-        for path in expected_windows_bundle_binary_paths(build_output_dir, product_id)
+        for path in expected_windows_bundle_binary_paths(
+            build_output_dir, product_id, use_claw_server_rust
+        )
         if path.exists()
     ]
 
 
 def get_missing_required_browseros_server_binary_paths(
-    build_output_dir: Path, product_id: str | None = None
+    build_output_dir: Path,
+    product_id: str | None = None,
+    use_claw_server_rust: bool | None = None,
 ) -> List[Path]:
     """Return missing bundled server binaries that should already be packaged."""
     missing: List[Path] = []
-    bundles = server_bundles_for_product(product_id) if product_id else all_server_bundles()
+    bundles = (
+        server_bundles_for_product(product_id, use_claw_server_rust)
+        if product_id
+        else all_server_bundles(use_claw_server_rust)
+    )
     for bundle in bundles:
         bundle_root = build_output_dir / bundle.windows_bundle_resources_root
         should_exist = (

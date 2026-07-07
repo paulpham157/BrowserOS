@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from ..lib.build_flags import load_build_flags
+
 
 @dataclass(frozen=True)
 class SignSpec:
@@ -45,18 +47,37 @@ class ServerBundle:
         return f"{self.unsigned_artifact_prefix}/latest/{base_name}-{target}.zip"
 
 
-def all_server_bundles() -> Tuple[ServerBundle, ...]:
-    """Every product's server bundles, in product registry order."""
-    from . import SERVER_BUNDLES
-
-    return SERVER_BUNDLES
-
-
-def server_bundles_for_product(product_id: str) -> Tuple[ServerBundle, ...]:
-    """Return server bundles owned by one build product."""
+def all_server_bundles(
+    use_claw_server_rust: Optional[bool] = None,
+) -> Tuple[ServerBundle, ...]:
+    """Every product's active browser-build server bundles."""
+    use_rust = _resolve_claw_server_flag(use_claw_server_rust)
     return tuple(
         bundle
-        for bundle in all_server_bundles()
+        for bundle in _browser_build_server_bundles()
+        if _is_active_browserclaw_bundle(bundle, use_rust)
+    )
+
+
+def server_bundles_for_product(
+    product_id: str,
+    use_claw_server_rust: Optional[bool] = None,
+) -> Tuple[ServerBundle, ...]:
+    """Return active browser-build server bundles owned by one product."""
+    return tuple(
+        bundle
+        for bundle in all_server_bundles(use_claw_server_rust)
+        if product_id in bundle.product_ids
+    )
+
+
+def server_ota_bundles_for_product(product_id: str) -> Tuple[ServerBundle, ...]:
+    """Return server OTA bundles; BrowserClaw OTA stays on TypeScript for now."""
+    from . import SERVER_BUNDLES
+
+    return tuple(
+        bundle
+        for bundle in SERVER_BUNDLES
         if product_id in bundle.product_ids
     )
 
@@ -79,14 +100,43 @@ def expected_windows_binary_paths(server_bin_dir: Path) -> List[Path]:
 
 
 def expected_windows_bundle_binary_paths(
-    build_output_dir: Path, product_id: Optional[str] = None
+    build_output_dir: Path,
+    product_id: Optional[str] = None,
+    use_claw_server_rust: Optional[bool] = None,
 ) -> List[Path]:
     """Resolve all bundled server binaries under a Chromium build output dir."""
     paths: List[Path] = []
     bundles = (
-        server_bundles_for_product(product_id) if product_id else all_server_bundles()
+        server_bundles_for_product(product_id, use_claw_server_rust)
+        if product_id
+        else all_server_bundles(use_claw_server_rust)
     )
     for bundle in bundles:
         bin_dir = build_output_dir / bundle.windows_bundle_resources_root / "bin"
         paths.extend(bin_dir / rel for rel in bundle.windows_binaries)
     return paths
+
+
+def _browser_build_server_bundles() -> Tuple[ServerBundle, ...]:
+    from . import SERVER_BUNDLES
+    from .browserclaw.product import BROWSERCLAW_RUST_SERVER_BUNDLE
+
+    return (*SERVER_BUNDLES, BROWSERCLAW_RUST_SERVER_BUNDLE)
+
+
+def _resolve_claw_server_flag(use_claw_server_rust: Optional[bool]) -> bool:
+    if use_claw_server_rust is not None:
+        return use_claw_server_rust
+    return load_build_flags().use_claw_server_rust
+
+
+def _is_active_browserclaw_bundle(
+    bundle: ServerBundle, use_claw_server_rust: bool
+) -> bool:
+    if "browserclaw" not in bundle.product_ids:
+        return True
+    if bundle.id == "browserclaw-server":
+        return not use_claw_server_rust
+    if bundle.id == "browserclaw-server-rust":
+        return use_claw_server_rust
+    return True

@@ -18,8 +18,9 @@ release-full.yml
     - release-server.yml for browseros
     - release-claw-server.yml for browserclaw
     - release-claw-server-rust.yml exists as a separate manual/reusable lane
-      for BrowserClaw Rust server resources, but is not called by the full
-      release until the Rust server becomes the active embedded server
+      for BrowserClaw Rust server resources. BrowserClaw browser builds can
+      consume its latest resources via the bos_build claw-server variant flag,
+      but the full release server-resource orchestration stays separate
   browser builds
     - release-linux.yml -> build-browseros.yml
     - release-windows.yml -> build-browseros.yml
@@ -39,7 +40,7 @@ macOS builder.
 | --- | --- | --- | --- |
 | `.github/workflows/release-server.yml` | Builds BrowserOS server resource zips for every browser target, uploads versioned R2 resource keys, attaches server release assets, and reflects the server package version. | Manual and `agent-server/v*` tags | Yes, when `include_servers=true` and `products` includes `browseros` |
 | `.github/workflows/release-claw-server.yml` | Builds BrowserClaw server and onboard resource zips, uploads versioned R2 keys, attaches server release assets, and reflects Claw package versions. | Manual and `claw-server/v*` tags | Yes, when `include_servers=true` and `products` includes `browserclaw` |
-| `.github/workflows/release-claw-server-rust.yml` | Builds BrowserClaw Rust server resource zips for every browser target, uploads versioned R2 keys under `claw-server-rust/prod-resources`, and attaches Rust server release assets. | Manual, reusable, and `claw-server-rust/v*` tags | No; intentionally separate until BrowserClaw migrates from the TypeScript server |
+| `.github/workflows/release-claw-server-rust.yml` | Builds BrowserClaw Rust server resource zips for every browser target, uploads versioned R2 keys under `claw-server-rust/prod-resources`, and attaches Rust server release assets. | Manual, reusable, and `claw-server-rust/v*` tags | No; BrowserClaw browser builds read the latest Rust resources when the bos_build flag is enabled, but this resource lane remains explicitly dispatched |
 | `.github/workflows/release-extensions.yml` | Builds, signs, uploads, and optionally republishes extension CRX manifests for `agent`, `controller`, `bugreporter`, and `browserclaw`. | Manual and reusable | No; per-product orchestrators can call it with `secrets: inherit` |
 | `.github/workflows/release-linux.yml` | Builds Linux x64 browser artifacts on WarpBuild, one matrix entry per selected product. | Manual | Yes |
 | `.github/workflows/release-windows.yml` | Builds Windows x64 browser artifacts on WarpBuild and optionally signs them. | Manual | Yes |
@@ -61,6 +62,15 @@ The Rust Claw server lane publishes to a distinct CDN/R2 prefix:
 `download_resources.yaml` entries that point at a new Rust server version until
 that workflow has populated the matching R2 objects; the bos_build download
 step fails the whole Chromium build when a configured key is missing.
+
+BrowserClaw browser builds select the embedded claw-server variant with
+`packages/browseros/bos_build/config/build_flags.yaml`:
+`use_claw_server_rust: true` embeds the Rust resources from
+`claw-server-rust/prod-resources/latest/`, and `false` rolls BrowserClaw browser
+builds back to the TypeScript/Bun resources from `claw-server/prod-resources/latest/`.
+The browser build downloads only the selected BrowserClaw variant. BrowserClaw
+server OTA feeds (`appcast-claw-server*.xml`) remain pinned to the TypeScript
+server bundle until a separate feed migration changes them.
 
 The reusable nesting depth is `release-full.yml -> release-linux.yml or
 release-windows.yml -> build-browseros.yml`, which stays below GitHub's limit
