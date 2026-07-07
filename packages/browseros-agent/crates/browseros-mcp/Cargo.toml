@@ -24,6 +24,7 @@ regex.workspace = true
 rand.workspace = true
 uuid.workspace = true
 serde_path_to_error.workspace = true
+rquickjs.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
