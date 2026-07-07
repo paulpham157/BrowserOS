@@ -1,9 +1,9 @@
 diff --git a/chrome/browser/browseros/onboarding/browseros_onboarding.cc b/chrome/browser/browseros/onboarding/browseros_onboarding.cc
 new file mode 100644
-index 0000000000000..d530753f436a0
+index 0000000000000..64393248726cd
 --- /dev/null
 +++ b/chrome/browser/browseros/onboarding/browseros_onboarding.cc
-@@ -0,0 +1,729 @@
+@@ -0,0 +1,728 @@
 +// Copyright 2026 The Chromium Authors
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -293,10 +293,9 @@ index 0000000000000..d530753f436a0
 +  void HandleComplete(const base::ListValue& args) {
 +    SendState("completed");
 +
-+    base::RepeatingClosure completion_callback = completion_callback_;
-+    if (completion_callback) {
-+      completion_callback.Run();
-+      return;
++    if (completion_callback_) {
++      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
++          FROM_HERE, completion_callback_);
 +    }
 +  }
 +
