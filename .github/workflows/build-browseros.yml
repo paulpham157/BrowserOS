@@ -245,7 +245,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $uri = 'https://app.esigner.com/files/CodeSignTool-v1-3-2-windows/3954004a/download'
+          # Canonical source: the app.esigner.com file endpoint rejects the
+          # runner's Invoke-WebRequest (run 28835010397, OperationStopped).
+          $uri = 'https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2-windows.zip'
           $zipPath = Join-Path $env:RUNNER_TEMP 'CodeSignTool-v1.3.2-windows.zip'
           $extractRoot = Join-Path $env:RUNNER_TEMP 'CodeSignTool-v1.3.2-windows'
           Invoke-WebRequest -Uri $uri -OutFile $zipPath
