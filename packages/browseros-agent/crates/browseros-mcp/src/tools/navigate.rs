@@ -5,6 +5,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 
+const DESCRIPTION: &str = "\
+Navigate a page: load a url, or go back/forward/reload. \
+Returns a fresh snapshot of the resulting page \
+(navigation invalidates refs, so old [ref=eN] handles no longer apply).";
+
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 enum NavigateAction {
@@ -26,12 +31,7 @@ struct NavigateArgs {
 }
 
 pub fn definition() -> crate::framework::ToolDef {
-    super::def::<NavigateArgs>(
-        "navigate",
-        "Navigate a page: load a url, or go back/forward/reload. Returns a fresh snapshot of the resulting page (navigation invalidates refs, so old [ref=eN] handles no longer apply).",
-        None,
-        handler,
-    )
+    super::def::<NavigateArgs>("navigate", DESCRIPTION, None, handler)
 }
 
 fn handler<'a>(

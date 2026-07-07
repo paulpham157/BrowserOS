@@ -9,6 +9,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Print the page to a PDF and save it to a BrowserOS output file, returning the path. \
+Use for archiving or reading a page as a document; prefer read for extracting text.";
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct PdfArgs {
     /// Page id from `tabs`.
@@ -34,7 +38,7 @@ struct PrintToPdfResult {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<PdfArgs>(
         "pdf",
-        "Print the page to a PDF and save it to a BrowserOS output file, returning the path. Use for archiving or reading a page as a document; prefer read for extracting text.",
+        DESCRIPTION,
         Some(super::read_only_annotations()),
         handler,
     )

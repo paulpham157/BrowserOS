@@ -8,6 +8,13 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Capture the page as an indented accessibility tree. \
+Each actionable element carries a stable [ref=eN] you pass to `act`. \
+Iframe content is stitched in inline. \
+Re-snapshot after navigation or large changes (refs are invalidated). \
+This is the start of the loop: snapshot -> act -> (reads back a diff).";
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct SnapshotArgs {
     /// Page id from `tabs` or `navigate`.
@@ -17,7 +24,7 @@ struct SnapshotArgs {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<SnapshotArgs>(
         "snapshot",
-        "Capture the page as an indented accessibility tree. Each actionable element carries a stable [ref=eN] you pass to `act`. Iframe content is stitched in inline. Re-snapshot after navigation or large changes (refs are invalidated). This is the start of the loop: snapshot -> act -> (reads back a diff).",
+        DESCRIPTION,
         Some(super::read_only_annotations()),
         handler,
     )

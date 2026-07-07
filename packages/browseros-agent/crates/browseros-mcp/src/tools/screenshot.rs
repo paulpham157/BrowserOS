@@ -10,6 +10,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 const DEFAULT_SCREENSHOT_QUALITY: i64 = 80;
+const DESCRIPTION: &str = "\
+Capture a screenshot of the page, returned inline. \
+Defaults to JPEG quality 80 around 1024x768; prefer snapshot for structure/actions.";
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -74,7 +77,7 @@ struct LayoutViewport {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<ScreenshotArgs>(
         "screenshot",
-        "Capture a screenshot of the page, returned inline. Defaults to JPEG quality 80 around 1024x768; prefer snapshot for structure/actions.",
+        DESCRIPTION,
         Some(super::read_only_annotations()),
         handler,
     )

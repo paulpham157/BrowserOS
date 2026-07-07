@@ -8,6 +8,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Manage tab groups: list groups, group pages, update a group (title/color/collapsed), \
+ungroup pages, or close a group. Page ids come from the tabs tool.";
+
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 enum TabGroupsAction {
@@ -74,7 +78,7 @@ struct GroupResult {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<TabGroupsArgs>(
         "tab_groups",
-        "Manage tab groups: list groups, group pages, update a group (title/color/collapsed), ungroup pages, or close a group. Page ids come from the tabs tool.",
+        DESCRIPTION,
         Some(super::open_world_annotations()),
         handler,
     )

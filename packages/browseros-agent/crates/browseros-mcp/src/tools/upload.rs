@@ -7,6 +7,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Set local file path(s) on a file input using a ref from the last snapshot. \
+Use for <input type=\"file\"> upload flows; files must exist on the server filesystem.";
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct UploadArgs {
     /// Page id from `tabs`.
@@ -20,12 +24,7 @@ struct UploadArgs {
 }
 
 pub fn definition() -> crate::framework::ToolDef {
-    super::def::<UploadArgs>(
-        "upload",
-        "Set local file path(s) on a file input using a ref from the last snapshot. Use for <input type=\"file\"> upload flows; files must exist on the server filesystem.",
-        None,
-        handler,
-    )
+    super::def::<UploadArgs>("upload", DESCRIPTION, None, handler)
 }
 
 fn handler<'a>(

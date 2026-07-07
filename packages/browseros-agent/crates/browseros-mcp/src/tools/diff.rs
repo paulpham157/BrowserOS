@@ -8,6 +8,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
+const DESCRIPTION: &str = "\
+Show what changed on the page since the last snapshot/diff - a cheap way to see \
+an action's effect without re-dumping the whole tree.";
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct DiffArgs {
     page: u32,
@@ -16,7 +20,7 @@ struct DiffArgs {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<DiffArgs>(
         "diff",
-        "Show what changed on the page since the last snapshot/diff - a cheap way to see an action's effect without re-dumping the whole tree.",
+        DESCRIPTION,
         Some(super::read_only_annotations()),
         handler,
     )

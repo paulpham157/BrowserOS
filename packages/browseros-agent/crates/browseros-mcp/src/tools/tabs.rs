@@ -7,6 +7,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 
+const DESCRIPTION: &str = "\
+Manage browser tabs: list open pages (with their page ids), show the active page, \
+open a new page, or close one. Use the returned page id with snapshot/act/navigate.";
+
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 enum TabsAction {
@@ -36,7 +40,7 @@ struct TabsArgs {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<TabsArgs>(
         "tabs",
-        "Manage browser tabs: list open pages (with their page ids), show the active page, open a new page, or close one. Use the returned page id with snapshot/act/navigate.",
+        DESCRIPTION,
         Some(super::open_world_annotations()),
         handler,
     )

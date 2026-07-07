@@ -7,6 +7,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Manage browser windows: list windows, create visible or hidden windows, \
+close or activate a window, and show or hide windows.";
+
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum WindowsAction {
@@ -37,7 +41,7 @@ struct WindowsArgs {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<WindowsArgs>(
         "windows",
-        "Manage browser windows: list windows, create visible or hidden windows, close or activate a window, and show or hide windows.",
+        DESCRIPTION,
         Some(super::open_world_annotations()),
         handler,
     )

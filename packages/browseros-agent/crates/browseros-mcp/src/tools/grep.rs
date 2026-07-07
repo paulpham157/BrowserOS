@@ -13,6 +13,9 @@ use serde_json::{Value, json};
 
 const DEFAULT_LIMIT: usize = 50;
 const LINE_TRUNCATION_MARKER: &str = "... [truncated]";
+const DESCRIPTION: &str = "\
+Search the page without dumping it. over=\"ax\" greps the snapshot lines \
+(matches keep their [ref=eN]); over=\"content\" greps visible text. Returns matching lines.";
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -46,7 +49,7 @@ struct RemoteObject {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<GrepArgs>(
         "grep",
-        "Search the page without dumping it. over=\"ax\" greps the snapshot lines (matches keep their [ref=eN]); over=\"content\" greps visible text. Returns matching lines.",
+        DESCRIPTION,
         Some(super::read_only_annotations()),
         handler,
     )

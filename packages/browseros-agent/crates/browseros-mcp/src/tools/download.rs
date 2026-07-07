@@ -10,6 +10,10 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
+const DESCRIPTION: &str = "\
+Click an element (by ref from the last snapshot) to trigger a file download, \
+and save it to a BrowserOS output file. Returns the saved path and filename.";
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct DownloadArgs {
     /// Page id from `tabs`.
@@ -19,12 +23,7 @@ struct DownloadArgs {
 }
 
 pub fn definition() -> crate::framework::ToolDef {
-    super::def::<DownloadArgs>(
-        "download",
-        "Click an element (by ref from the last snapshot) to trigger a file download, and save it to a BrowserOS output file. Returns the saved path and filename.",
-        None,
-        handler,
-    )
+    super::def::<DownloadArgs>("download", DESCRIPTION, None, handler)
 }
 
 fn handler<'a>(

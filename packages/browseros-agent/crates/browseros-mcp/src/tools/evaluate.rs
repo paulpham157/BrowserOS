@@ -15,7 +15,10 @@ use serde_json::{Value, json};
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const MAX_TIMEOUT_MS: u64 = 30_000;
 
-const DESCRIPTION: &str = "Evaluate JavaScript in a page context through CDP Runtime.evaluate. Use this for page-state reads or small DOM scripts that are awkward with read/grep. Return a value to read it back.";
+const DESCRIPTION: &str = "\
+Evaluate JavaScript in a page context through CDP Runtime.evaluate. \
+Use this for page-state reads or small DOM scripts that are awkward with read/grep. \
+Return a value to read it back.";
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct EvaluateArgs {

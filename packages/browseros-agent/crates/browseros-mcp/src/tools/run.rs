@@ -6,7 +6,18 @@ use serde_json::{Value, json};
 
 const DEFAULT_TIMEOUT_MS: f64 = 30_000.0;
 
-const DESCRIPTION: &str = "Run JavaScript against the `browser` SDK in the server runtime for multi-step flows and data extraction that would otherwise take many tool calls. `console.log` is captured; `return` a value to read it back; exceptions come back as a result, not a thrown error.\n\nAvailable as `browser`:\n  browser.pages.list() / newPage(url) / close(pageId) / getInfo(pageId)\n  browser.observe(pageId).snapshot()  -> { text, refs }\n  browser.observe(pageId).diff()      -> { text, added, removed, changed }\n  browser.observe(pageId).resolveRef(ref)\n  browser.input(pageId).click(ref) / fill(ref,value) / type(text) / press(key) / hover(ref) / selectOption(ref,value) / scroll(dir,amount,ref?)\n  browser.nav(pageId).goto(url) / back() / forward() / reload()\n  browser.cdp(method, params?, sessionId?)   // raw CDP escape hatch\n  browser.cdpJsonForPage(pageId, method, paramsJson) // page-scoped raw CDP with validated JSON params\nRefs (eN) come from a snapshot's text/refs.";
+const DESCRIPTION: &str = r#"Run JavaScript against the `browser` SDK in the server runtime for multi-step flows and data extraction that would otherwise take many tool calls. `console.log` is captured; `return` a value to read it back; exceptions come back as a result, not a thrown error.
+
+Available as `browser`:
+  browser.pages.list() / newPage(url) / close(pageId) / getInfo(pageId)
+  browser.observe(pageId).snapshot()  -> { text, refs }
+  browser.observe(pageId).diff()      -> { text, added, removed, changed }
+  browser.observe(pageId).resolveRef(ref)
+  browser.input(pageId).click(ref) / fill(ref,value) / type(text) / press(key) / hover(ref) / selectOption(ref,value) / scroll(dir,amount,ref?)
+  browser.nav(pageId).goto(url) / back() / forward() / reload()
+  browser.cdp(method, params?, sessionId?)   // raw CDP escape hatch
+  browser.cdpJsonForPage(pageId, method, paramsJson) // page-scoped raw CDP with validated JSON params
+Refs (eN) come from a snapshot's text/refs."#;
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 struct RunArgs {

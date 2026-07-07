@@ -10,6 +10,12 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Act on the page using refs from the last snapshot. \
+kinds: click, type (into focused element), fill (one field via ref+value, or many via fields[]), \
+press (a key/combo), hover, focus, check, uncheck, select (an option value), scroll, drag. \
+Reads back a diff of what changed - re-snapshot if you need fresh refs.";
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum ActKind {
@@ -118,12 +124,7 @@ struct ActArgs {
 }
 
 pub fn definition() -> crate::framework::ToolDef {
-    super::def::<ActArgs>(
-        "act",
-        "Act on the page using refs from the last snapshot. kinds: click, type (into focused element), fill (one field via ref+value, or many via fields[]), press (a key/combo), hover, focus, check, uncheck, select (an option value), scroll, drag. Reads back a diff of what changed - re-snapshot if you need fresh refs.",
-        None,
-        handler,
-    )
+    super::def::<ActArgs>("act", DESCRIPTION, None, handler)
 }
 
 fn handler<'a>(

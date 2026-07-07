@@ -13,6 +13,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+const DESCRIPTION: &str = "\
+Extract page content as markdown (default), plain text, or a list of links. \
+For reading/scraping, not acting.";
+
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 enum ReadFormat {
@@ -62,7 +66,7 @@ struct ExceptionDetails {
 pub fn definition() -> crate::framework::ToolDef {
     super::def::<ReadArgs>(
         "read",
-        "Extract page content as markdown (default), plain text, or a list of links. For reading/scraping, not acting.",
+        DESCRIPTION,
         Some(super::read_only_annotations()),
         handler,
     )
